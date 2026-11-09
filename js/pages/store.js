@@ -10,7 +10,7 @@ import {
   getScheduleItem,
   saveScheduleItem,
   deleteScheduleItem,
-  ensureScheduleSeeded,
+  ensureScheduleReady,
 } from '../lib/schedule-store.js'
 import { isStoreUnlocked, unlockStore, lockStore } from '../lib/store-auth.js'
 import { hasSupabaseConfig, syncLyrics } from '../lib/lyrics-sync.js'
@@ -168,7 +168,7 @@ async function unlockedScreen({
   editingId = null,
   notice = '',
 } = {}) {
-  await ensureScheduleSeeded()
+  await ensureScheduleReady()
   const pending = await getPendingSyncCount()
   const addLabel =
     tab === 'lyrics' ? 'Add song' : tab === 'practice' ? 'Add practice' : 'Add service'

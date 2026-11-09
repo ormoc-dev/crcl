@@ -1,4 +1,4 @@
-import { ensureScheduleSeeded, getAllSchedule } from '../lib/schedule-store.js'
+import { ensureScheduleReady, getAllSchedule } from '../lib/schedule-store.js'
 
 function escapeHtml(value) {
   return String(value)
@@ -35,7 +35,7 @@ function section(title, items) {
 }
 
 export async function renderSchedule() {
-  await ensureScheduleSeeded()
+  await ensureScheduleReady()
   const all = await getAllSchedule()
   const services = all
     .filter((item) => item.type === 'service')

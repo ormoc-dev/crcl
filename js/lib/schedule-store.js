@@ -1,4 +1,3 @@
-import { DEFAULT_SCHEDULE } from '../data/choir-schedule.js'
 import {
   openDb,
   txDone,
@@ -6,8 +5,13 @@ import {
   SCHEDULE_STORE,
 } from './lyrics-store.js'
 
-const SEED_KEY = 'crc-schedule-seeded'
-let seeded = false
+/** Placeholder IDs that used to be auto-seeded — remove from devices once. */
+const BUILTIN_SCHEDULE_IDS = new Set([
+  'svc-sunday-6am',
+  'svc-sunday-8am',
+  'svc-special',
+  'prac-saturday',
+])
 
 function normalizeItem(item) {
   return {
@@ -24,28 +28,9 @@ function normalizeItem(item) {
   }
 }
 
-export async function ensureScheduleSeeded() {
-  if (seeded || localStorage.getItem(SEED_KEY) === '1') {
-    seeded = true
-    return
-  }
-
-  const existing = await getAllSchedule()
-  if (existing.length) {
-    localStorage.setItem(SEED_KEY, '1')
-    seeded = true
-    return
-  }
-
-  const db = await openDb()
-  const tx = db.transaction(SCHEDULE_STORE, 'readwrite')
-  const store = tx.objectStore(SCHEDULE_STORE)
-  for (const item of DEFAULT_SCHEDULE) {
-    store.put(normalizeItem({ ...item, synced: true, deleted: false }))
-  }
-  await txDone(tx)
-  localStorage.setItem(SEED_KEY, '1')
-  seeded = true
+/** No built-in schedule — starts empty until Manage Choir adds items. */
+export async function ensureScheduleReady() {
+  await openDb()
 }
 
 export async function getAllSchedule() {
@@ -62,15 +47,20 @@ export async function getAllSchedule() {
 }
 
 export async function getScheduleByType(type) {
-  await ensureScheduleSeeded()
+  await ensureScheduleReady()
   const rows = await getAllSchedule()
   return rows
     .filter((row) => row.type === type)
-    .sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time) || a.title.localeCompare(b.title))
+    .sort(
+      (a, b) =>
+        a.day.localeCompare(b.day) ||
+        a.time.localeCompare(b.time) ||
+        a.title.localeCompare(b.title),
+    )
 }
 
 export async function getScheduleItem(id) {
-  await ensureScheduleSeeded()
+  await ensureScheduleReady()
   const db = await openDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(SCHEDULE_STORE, 'readonly')
@@ -84,7 +74,7 @@ export async function getScheduleItem(id) {
 }
 
 export async function saveScheduleItem(item) {
-  await ensureScheduleSeeded()
+  await ensureScheduleReady()
   const payload = normalizeItem({
     ...item,
     updated_at: new Date().toISOString(),
@@ -108,7 +98,7 @@ export async function saveScheduleItem(item) {
 }
 
 export async function deleteScheduleItem(id) {
-  await ensureScheduleSeeded()
+  await ensureScheduleReady()
   const existing = await getScheduleItem(id)
   const db = await openDb()
   const tx = db.transaction(SCHEDULE_STORE, 'readwrite')
@@ -149,8 +139,6 @@ export async function replaceAllSchedule(items) {
   }
 
   await txDone(tx)
-  localStorage.setItem(SEED_KEY, '1')
-  seeded = true
 }
 
 export async function markScheduleSynced(id) {
@@ -169,3 +157,39 @@ export async function markScheduleSynced(id) {
 
   await txDone(tx)
 }
+
+/** Remove old placeholder schedule rows that were auto-seeded. */
+export async function removeBuiltInScheduleSamples() {
+  const existing = await getAllSchedule()
+  const doomed = existing.filter((row) => BUILTIN_SCHEDULE_IDS.has(row.id))
+  if (!doomed.length) return existing
+
+  const db = await openDb()
+  const tx = db.transaction(SCHEDULE_STORE, 'readwrite')
+  const store = tx.objectStore(SCHEDULE_STORE)
+  for (const row of doomed) {
+    store.delete(row.id)
+    // Also queue cloud delete so deploy/sync doesn't keep them
+  }
+  await txDone(tx)
+
+  for (const row of doomed) {
+    await enqueueSync({
+      action: 'delete',
+      kind: 'schedule',
+      scheduleId: row.id,
+      payload: { ...row, deleted: true, updated_at: new Date().toISOString() },
+    })
+  }
+
+  try {
+    localStorage.removeItem('crc-schedule-seeded')
+  } catch {
+    /* ignore */
+  }
+
+  return getAllSchedule()
+}
+
+/** @deprecated use ensureScheduleReady */
+export const ensureScheduleSeeded = ensureScheduleReady

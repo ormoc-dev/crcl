@@ -23,7 +23,6 @@ const SHELL_ASSETS = [
   './js/pages/store.js',
   './js/pages/privacy.js',
   './js/pages/lyrics.js',
-  './js/data/choir-schedule.js',
   './js/lib/supabase.js',
   './js/lib/lyrics-store.js',
   './js/lib/schedule-store.js',

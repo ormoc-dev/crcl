@@ -10,7 +10,7 @@ import {
 import {
   markScheduleSynced,
   replaceAllSchedule,
-  ensureScheduleSeeded,
+  ensureScheduleReady,
 } from './schedule-store.js'
 import { detectAndNotifySyncChanges } from './notify-service.js'
 
@@ -137,13 +137,10 @@ async function pullRemote() {
       deleted: false,
     }))
 
-    if (scheduleRows.length) {
-      await replaceAllSchedule(scheduleRows)
-    } else {
-      await ensureScheduleSeeded()
-    }
+    // Always mirror remote schedule (empty remote = empty local)
+    await replaceAllSchedule(scheduleRows)
   } else {
-    await ensureScheduleSeeded()
+    await ensureScheduleReady()
   }
 
   try {
@@ -172,7 +169,7 @@ export async function syncLyrics() {
   syncing = true
 
   try {
-    await ensureScheduleSeeded()
+    await ensureScheduleReady()
     const pushed = await pushQueue()
     const pulled = await pullRemote()
     const pending = await getPendingSyncCount()

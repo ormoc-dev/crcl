@@ -4,6 +4,7 @@ import { renderOfflineBanner } from './components/offline-banner.js'
 import { renderInstallPrompt } from './components/install-prompt.js'
 import { startRouter } from './router.js'
 import { removeBuiltInSamples } from './lib/lyrics-store.js'
+import { removeBuiltInScheduleSamples } from './lib/schedule-store.js'
 import { hasSupabaseConfig, startAutoSync } from './lib/lyrics-sync.js'
 import { registerServiceWorker } from './lib/register-sw.js'
 import { startNotifyService } from './lib/notify-service.js'
@@ -18,6 +19,7 @@ async function boot() {
   renderOfflineBanner()
   renderInstallPrompt()
   await removeBuiltInSamples()
+  await removeBuiltInScheduleSamples()
   startRouter()
   registerServiceWorker()
   startNotifyService()
