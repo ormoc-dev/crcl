@@ -1,4 +1,4 @@
-import { getLyricById, ensureSeedLyrics } from '../lib/lyrics-store.js'
+import { getLyricById } from '../lib/lyrics-store.js'
 
 function escapeHtml(value) {
   return String(value)
@@ -9,13 +9,11 @@ function escapeHtml(value) {
 }
 
 export async function renderLyric(id) {
-  await ensureSeedLyrics()
   const lyric = await getLyricById(id)
 
   if (!lyric) {
     return `
       <section class="page">
-        <a class="back-link" href="#/">← Back to lyrics</a>
         <h1>Song not found</h1>
         <p>This lyric is not saved on this device.</p>
       </section>
@@ -24,7 +22,6 @@ export async function renderLyric(id) {
 
   return `
     <section class="page lyric-view">
-      <a class="back-link" href="#/">← Back to lyrics</a>
       <header class="lyric-meta">
         <h1>${escapeHtml(lyric.title)}</h1>
         <p>${escapeHtml(lyric.artist || 'Unknown')} · Key ${escapeHtml(lyric.key || '—')}</p>

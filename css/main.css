@@ -210,9 +210,41 @@ textarea {
 }
 
 .empty-state {
-  padding: 1.5rem 1rem;
-  text-align: left;
+  display: grid;
+  place-items: center;
+  justify-items: center;
+  gap: 0.45rem;
+  min-height: 45vh;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
   color: var(--muted);
+}
+
+.empty-state .empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: grid;
+  place-items: center;
+  margin-bottom: 0.35rem;
+  border-radius: 999px;
+  background: var(--brown-soft);
+  color: var(--brown);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.empty-state strong {
+  color: var(--brown-dark);
+  font-family: var(--font-brand);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.empty-state p {
+  max-width: 16rem;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 .lyric-list {
@@ -339,10 +371,20 @@ textarea {
 .btn {
   appearance: none;
   border: none;
-  border-radius: 10px;
-  padding: 0.7rem 0.95rem;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.btn-block {
+  width: 100%;
 }
 
 .btn-primary {
@@ -356,47 +398,88 @@ textarea {
   border: 1px solid var(--line);
 }
 
-.btn-danger {
+.btn-text {
+  appearance: none;
+  border: none;
   background: transparent;
+  padding: 0.15rem 0.2rem;
+  color: var(--brown);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-text-danger {
   color: #7a2e1b;
-  border: 1px solid #e7cfc4;
 }
 
 .form-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  margin-top: 0.35rem;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
 }
 
-.store-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+.store-page {
+  padding-top: 0.65rem;
 }
 
-.store-toolbar {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.85rem;
+.store-top {
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.65rem;
   border-bottom: 1px solid var(--line);
+}
+
+.store-top h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.store-top > p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+
+.store-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.store-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.store-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.store-status {
+  color: var(--muted);
 }
 
 .store-lock,
 .store-form {
   display: grid;
-  gap: 0.45rem;
-  padding: 0;
+  gap: 0.55rem;
+  padding: 0.75rem 0 0;
   background: transparent;
   border: none;
 }
 
-.store-lock label,
-.store-form label {
-  margin-top: 0.45rem;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--brown-dark);
+.store-form-row {
+  display: grid;
+  grid-template-columns: 1fr 4.5rem;
+  gap: 0.65rem;
 }
 
 .store-lock input,
@@ -408,14 +491,15 @@ textarea {
   border-radius: 0;
   background: transparent;
   color: var(--text);
-  padding: 0.75rem 0;
+  padding: 0.65rem 0;
   outline: none;
+  font-size: 0.95rem;
 }
 
 .store-form textarea {
   resize: vertical;
-  min-height: 220px;
-  line-height: 1.6;
+  min-height: 180px;
+  line-height: 1.55;
   font-family: var(--font-song);
 }
 
@@ -428,12 +512,12 @@ textarea {
 .form-error {
   margin: 0;
   color: #7a2e1b;
+  font-size: 0.85rem;
   font-weight: 700;
 }
 
 .sync-pending,
 .sync-notice {
-  margin-top: 0.45rem !important;
   color: var(--brown) !important;
   font-weight: 600;
 }
@@ -446,27 +530,41 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.95rem 0;
+  gap: 0.65rem;
+  padding: 0.7rem 0;
   border-bottom: 1px solid var(--line);
   background: transparent;
 }
 
+.store-song-copy {
+  min-width: 0;
+}
+
 .store-song strong {
   display: block;
-  margin-bottom: 0.15rem;
+  margin-bottom: 0.1rem;
   color: var(--brown-dark);
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 .store-song span {
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .store-song-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.store-empty {
+  padding: 1.75rem 0.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .privacy-content {

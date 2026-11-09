@@ -3,32 +3,8 @@ const DB_VERSION = 2
 const STORE = 'lyrics'
 const QUEUE = 'sync_queue'
 
-const SAMPLE_LYRICS = [
-  {
-    id: 'sample-1',
-    title: 'Amazing Grace',
-    artist: 'Traditional',
-    key: 'G',
-    updated_at: new Date().toISOString(),
-    synced: false,
-    body: `Amazing grace, how sweet the sound
-That saved a wretch like me
-I once was lost, but now am found
-Was blind, but now I see`,
-  },
-  {
-    id: 'sample-2',
-    title: 'How Great Thou Art',
-    artist: 'Traditional',
-    key: 'A',
-    updated_at: new Date().toISOString(),
-    synced: false,
-    body: `O Lord my God, when I in awesome wonder
-Consider all the worlds Thy hands have made
-I see the stars, I hear the rolling thunder
-Thy power throughout the universe displayed`,
-  },
-]
+const BUILTIN_SAMPLE_IDS = new Set(['sample-1', 'sample-2'])
+const BUILTIN_SAMPLE_TITLES = new Set(['amazing grace', 'how great thou art'])
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -204,11 +180,21 @@ export async function getPendingSyncCount() {
   return queue.length
 }
 
-export async function ensureSeedLyrics(hasRemoteConfig = false) {
+/** Remove old demo songs that were seeded locally. */
+export async function removeBuiltInSamples() {
   const existing = await getAllLyrics()
-  if (existing.length > 0) return existing
-  if (hasRemoteConfig) return []
+  const doomed = existing.filter((lyric) => {
+    const title = String(lyric.title || '').trim().toLowerCase()
+    return BUILTIN_SAMPLE_IDS.has(lyric.id) || BUILTIN_SAMPLE_TITLES.has(title)
+  })
 
-  await saveLyrics(SAMPLE_LYRICS)
-  return SAMPLE_LYRICS
+  if (!doomed.length) return existing
+
+  const db = await openDb()
+  const tx = db.transaction(STORE, 'readwrite')
+  const store = tx.objectStore(STORE)
+  for (const lyric of doomed) store.delete(lyric.id)
+  await txDone(tx)
+
+  return getAllLyrics()
 }

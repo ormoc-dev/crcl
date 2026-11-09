@@ -1,4 +1,4 @@
-import { ensureSeedLyrics, getAllLyrics } from '../lib/lyrics-store.js'
+import { getAllLyrics } from '../lib/lyrics-store.js'
 
 let cachedLyrics = []
 let lastListSignature = ''
@@ -48,7 +48,13 @@ function listSignature(lyrics) {
 
 function renderList(lyrics) {
   if (!lyrics.length) {
-    return '<p class="empty-state">No songs found.</p>'
+    return `
+      <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">♪</div>
+        <strong>No songs found</strong>
+        <p>Choir lyrics will appear here once they are saved.</p>
+      </div>
+    `
   }
 
   return lyrics
@@ -60,7 +66,6 @@ function renderList(lyrics) {
 
 export async function renderHome() {
   cachedLyrics = await getAllLyrics()
-  if (!cachedLyrics.length) cachedLyrics = await ensureSeedLyrics()
   lastListSignature = listSignature(cachedLyrics)
 
   return `

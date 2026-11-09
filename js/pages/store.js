@@ -3,7 +3,6 @@ import {
   getLyricById,
   saveLyric,
   deleteLyric,
-  ensureSeedLyrics,
   getPendingSyncCount,
 } from '../lib/lyrics-store.js'
 import { isStoreUnlocked, unlockStore, lockStore } from '../lib/store-auth.js'
@@ -18,54 +17,47 @@ function escapeHtml(value) {
 }
 
 function syncHint() {
-  if (!hasSupabaseConfig()) {
-    return 'Supabase is not configured yet. Songs stay on this device only.'
-  }
-
-  if (!navigator.onLine) {
-    return 'Offline — saved here now, uploads automatically when back online.'
-  }
-
-  return 'Auto sync is on — saves upload to Supabase for other devices.'
+  if (!hasSupabaseConfig()) return 'Local only'
+  if (!navigator.onLine) return 'Offline · will sync later'
+  return 'Auto sync on'
 }
 
 function lockScreen(error = '') {
   return `
     <section class="page store-page">
-      <div class="page-head">
+      <div class="store-top">
         <h1>Store Lyrics</h1>
-        <p>Enter the choir password to add or edit songs.</p>
+        <p>Enter password to manage songs.</p>
       </div>
 
       <form class="store-lock" id="store-lock-form">
-        <label for="store-password">Password</label>
         <input
           id="store-password"
           name="password"
           type="password"
           autocomplete="current-password"
-          placeholder="Enter password"
+          placeholder="Password"
           required
         />
         ${error ? `<p class="form-error">${escapeHtml(error)}</p>` : ''}
-        <button type="submit" class="btn btn-primary">Unlock</button>
+        <button type="submit" class="btn btn-primary btn-block">Unlock</button>
       </form>
     </section>
   `
 }
 
 function songRow(lyric) {
-  const pending = lyric.synced === false ? ' · Syncing…' : ''
+  const pending = lyric.synced === false ? ' · Syncing' : ''
 
   return `
     <div class="store-song" data-id="${escapeHtml(lyric.id)}">
-      <div>
+      <div class="store-song-copy">
         <strong>${escapeHtml(lyric.title)}</strong>
-        <span>${escapeHtml(lyric.artist || 'Unknown')} · Key ${escapeHtml(lyric.key || '—')}${pending}</span>
+        <span>${escapeHtml(lyric.artist || 'Unknown')} · ${escapeHtml(lyric.key || '—')}${pending}</span>
       </div>
       <div class="store-song-actions">
-        <button type="button" class="btn btn-ghost" data-action="edit">Edit</button>
-        <button type="button" class="btn btn-danger" data-action="delete">Delete</button>
+        <button type="button" class="btn-text" data-action="edit">Edit</button>
+        <button type="button" class="btn-text btn-text-danger" data-action="delete">Delete</button>
       </div>
     </div>
   `
@@ -76,20 +68,15 @@ function editorForm(lyric = null) {
     <form class="store-form" id="store-form">
       <input type="hidden" name="id" value="${escapeHtml(lyric?.id || '')}" />
 
-      <label for="song-title">Title</label>
-      <input id="song-title" name="title" type="text" required value="${escapeHtml(lyric?.title || '')}" />
-
-      <label for="song-artist">Artist / Source</label>
-      <input id="song-artist" name="artist" type="text" value="${escapeHtml(lyric?.artist || '')}" />
-
-      <label for="song-key">Key</label>
-      <input id="song-key" name="key" type="text" value="${escapeHtml(lyric?.key || '')}" placeholder="e.g. G" />
-
-      <label for="song-body">Lyrics</label>
-      <textarea id="song-body" name="body" rows="12" required placeholder="Paste or type the song lyrics...">${escapeHtml(lyric?.body || '')}</textarea>
+      <input id="song-title" name="title" type="text" required placeholder="Title" value="${escapeHtml(lyric?.title || '')}" />
+      <div class="store-form-row">
+        <input id="song-artist" name="artist" type="text" placeholder="Artist / Source" value="${escapeHtml(lyric?.artist || '')}" />
+        <input id="song-key" name="key" type="text" placeholder="Key" value="${escapeHtml(lyric?.key || '')}" />
+      </div>
+      <textarea id="song-body" name="body" rows="10" required placeholder="Song lyrics...">${escapeHtml(lyric?.body || '')}</textarea>
 
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary">${lyric ? 'Save changes' : 'Add song'}</button>
+        <button type="submit" class="btn btn-primary">${lyric ? 'Save' : 'Add'}</button>
         <button type="button" class="btn btn-ghost" id="store-cancel">Cancel</button>
       </div>
     </form>
@@ -97,32 +84,36 @@ function editorForm(lyric = null) {
 }
 
 async function unlockedScreen(mode = 'list', editingId = null, notice = '') {
-  await ensureSeedLyrics(hasSupabaseConfig())
   const lyrics = (await getAllLyrics()).sort((a, b) => a.title.localeCompare(b.title))
   const editing = editingId ? await getLyricById(editingId) : null
   const pending = await getPendingSyncCount()
 
   return `
     <section class="page store-page">
-      <div class="page-head store-head">
-        <div>
+      <div class="store-top">
+        <div class="store-top-row">
           <h1>Store Lyrics</h1>
-          <p>${escapeHtml(syncHint())}</p>
-          ${pending ? `<p class="sync-pending">${pending} change(s) syncing automatically…</p>` : ''}
-          ${notice ? `<p class="sync-notice">${escapeHtml(notice)}</p>` : ''}
+          <div class="store-top-actions">
+            ${mode === 'list' ? `<button type="button" class="btn btn-primary btn-sm" id="store-add">Add</button>` : ''}
+            <button type="button" class="btn btn-ghost btn-sm" id="store-lock-btn">Lock</button>
+          </div>
         </div>
-        <button type="button" class="btn btn-ghost" id="store-lock-btn">Lock</button>
+        <div class="store-meta">
+          <span class="store-status">${escapeHtml(syncHint())}</span>
+          ${pending ? `<span class="sync-pending">${pending} pending</span>` : ''}
+          ${notice ? `<span class="sync-notice">${escapeHtml(notice)}</span>` : ''}
+        </div>
       </div>
 
       ${
         mode === 'form'
           ? editorForm(editing)
           : `
-            <div class="form-actions store-toolbar">
-              <button type="button" class="btn btn-primary" id="store-add">Add song</button>
-            </div>
             <div class="store-song-list">
-              ${lyrics.map(songRow).join('') || '<p class="empty-state">No songs stored yet.</p>'}
+              ${
+                lyrics.map(songRow).join('') ||
+                `<div class="store-empty">No songs yet.<br />Tap Add to save one.</div>`
+              }
             </div>
           `
       }

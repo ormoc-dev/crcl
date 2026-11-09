@@ -2,7 +2,7 @@ import { renderHeader } from './components/header.js'
 import { renderBottomBar } from './components/bottom-bar.js'
 import { renderOfflineBanner } from './components/offline-banner.js'
 import { startRouter } from './router.js'
-import { ensureSeedLyrics } from './lib/lyrics-store.js'
+import { removeBuiltInSamples } from './lib/lyrics-store.js'
 import { hasSupabaseConfig, startAutoSync } from './lib/lyrics-sync.js'
 import { registerServiceWorker } from './lib/register-sw.js'
 
@@ -14,7 +14,7 @@ async function boot() {
   if (bottomBar) renderBottomBar(bottomBar)
 
   renderOfflineBanner()
-  await ensureSeedLyrics(hasSupabaseConfig())
+  await removeBuiltInSamples()
   startRouter()
   registerServiceWorker()
 
@@ -23,7 +23,6 @@ async function boot() {
   } else {
     console.warn('Supabase is not configured in js/config.js — local-only mode.')
   }
-
 }
 
 boot()
