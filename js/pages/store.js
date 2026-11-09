@@ -7,6 +7,7 @@ import {
 } from '../lib/lyrics-store.js'
 import { isStoreUnlocked, unlockStore, lockStore } from '../lib/store-auth.js'
 import { hasSupabaseConfig, syncLyrics } from '../lib/lyrics-sync.js'
+import { confirmModal } from '../components/confirm-modal.js'
 
 function escapeHtml(value) {
   return String(value)
@@ -63,8 +64,19 @@ function songRow(lyric) {
         <span>${escapeHtml(lyric.artist || 'Unknown')} · ${escapeHtml(lyric.key || '—')}${pending}</span>
       </div>
       <div class="store-song-actions">
-        <button type="button" class="btn-text" data-action="edit">Edit</button>
-        <button type="button" class="btn-text btn-text-danger" data-action="delete">Delete</button>
+        <button type="button" class="icon-btn" data-action="edit" aria-label="Edit ${escapeHtml(lyric.title)}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 20h4l10.5-10.5-4-4L4 16v4z" />
+            <path d="m13.5 6.5 4 4" />
+          </svg>
+        </button>
+        <button type="button" class="icon-btn icon-btn-danger" data-action="delete" aria-label="Delete ${escapeHtml(lyric.title)}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 7h14" />
+            <path d="M9 7V5h6v2" />
+            <path d="M8 7l1 13h6l1-13" />
+          </svg>
+        </button>
       </div>
     </div>
   `
@@ -185,7 +197,15 @@ export function bindStore(root) {
 
     row.querySelector('[data-action="delete"]')?.addEventListener('click', async () => {
       const title = row.querySelector('strong')?.textContent || 'this song'
-      if (!confirm(`Delete "${title}"?`)) return
+      const ok = await confirmModal({
+        title: 'Delete song?',
+        message: `Remove "${title}" from the choir lyrics list? This cannot be undone.`,
+        confirmText: 'Delete',
+        cancelText: 'Keep',
+        danger: true,
+      })
+      if (!ok) return
+
       await deleteLyric(id)
       await syncLyrics()
       root.innerHTML = await unlockedScreen(

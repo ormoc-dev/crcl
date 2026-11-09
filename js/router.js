@@ -2,7 +2,7 @@ import { renderHome, bindHome, refreshHomeQuietly } from './pages/home.js'
 import { renderSettings, bindSettings } from './pages/settings.js'
 import { renderStore, bindStore } from './pages/store.js'
 import { renderPrivacy } from './pages/privacy.js'
-import { renderLyric } from './pages/lyrics.js'
+import { renderLyric, bindLyric, stopLyricAutoScroll } from './pages/lyrics.js'
 import { setActiveNav } from './components/bottom-bar.js'
 
 export function getPath() {
@@ -24,17 +24,26 @@ async function resolvePage(path) {
 export async function renderRoute() {
   const path = getPath()
   const mount = document.getElementById('page-content')
+  const app = document.getElementById('app')
 
   if (!mount) return
+
+  // Stop previous lyric page auto-scroll / listeners
+  mount._lyricCleanup?.()
+  stopLyricAutoScroll()
+
+  const isLyricView = /^\/lyrics\/[^/]+$/.test(path)
+  app?.classList.toggle('is-lyric-view', isLyricView)
 
   // Keep current page visible until the next page is ready (no loading blink)
   const html = await resolvePage(path)
   mount.innerHTML = html
   setActiveNav(path)
 
-  if (path === '/' || path === '') bindHome(mount)
+  if (path === '/' || path === '') bindHome()
   if (path === '/settings') bindSettings(mount)
   if (path === '/store') bindStore(mount)
+  if (isLyricView) bindLyric(mount)
 }
 
 export function startRouter() {

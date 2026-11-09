@@ -45,7 +45,7 @@ export function renderPrivacy() {
           <h2>Contact</h2>
           <p>
             For privacy questions about Christus Rex Choir Song Lyrics, contact
-            your choir admin.
+            <a href="mailto:anthony.capuyan23@gmail.com">anthony.capuyan23@gmail.com</a>.
           </p>
         </article>
       </div>

@@ -2,13 +2,11 @@ import { getAllLyrics } from '../lib/lyrics-store.js'
 
 let cachedLyrics = []
 let lastListSignature = ''
+let currentQuery = ''
 
 function lyricListItem(lyric) {
-  const initial = (lyric.title || '?').trim().charAt(0).toUpperCase()
-
   return `
     <a class="lyric-card" href="#/lyrics/${lyric.id}">
-      <div class="lyric-mark" aria-hidden="true">${escapeHtml(initial)}</div>
       <div class="lyric-copy">
         <strong>${escapeHtml(lyric.title)}</strong>
         <span>${escapeHtml(lyric.artist || 'Unknown')}</span>
@@ -50,9 +48,9 @@ function renderList(lyrics) {
   if (!lyrics.length) {
     return `
       <div class="empty-state">
-        <div class="empty-icon" aria-hidden="true">♪</div>
+        <div class="empty-icon" aria-hidden="true">❧</div>
         <strong>No songs found</strong>
-        <p>Choir lyrics will appear here once they are saved.</p>
+        <p>These pages are waiting for choir lyrics to be written.</p>
       </div>
     `
   }
@@ -70,34 +68,22 @@ export async function renderHome() {
 
   return `
     <section class="page lyrics-page">
-      <div class="search-bar">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-        <input
-          id="lyric-search"
-          type="search"
-          placeholder="Search song lyrics..."
-          autocomplete="off"
-          enterkeyhint="search"
-        />
-      </div>
       <div class="lyric-list">
-        ${renderList(cachedLyrics)}
+        ${renderList(filterLyrics(cachedLyrics, currentQuery))}
       </div>
     </section>
   `
 }
 
-export function bindHome(root) {
-  const input = root.querySelector('#lyric-search')
-  const list = root.querySelector('.lyric-list')
-  if (!input || !list) return
+export function bindHome() {
+  // Search is handled from the header icon
+}
 
-  input.addEventListener('input', () => {
-    list.innerHTML = renderList(filterLyrics(cachedLyrics, input.value))
-  })
+export function applyHomeSearch(query) {
+  currentQuery = query || ''
+  const list = document.querySelector('#page-content .lyric-list')
+  if (!list) return
+  list.innerHTML = renderList(filterLyrics(cachedLyrics, currentQuery))
 }
 
 /** Update song list after background sync without remounting the page. */
@@ -105,7 +91,6 @@ export async function refreshHomeQuietly(root = document.getElementById('page-co
   if (!root) return false
 
   const list = root.querySelector('.lyric-list')
-  const input = root.querySelector('#lyric-search')
   if (!list) return false
 
   const lyrics = await getAllLyrics()
@@ -114,20 +99,6 @@ export async function refreshHomeQuietly(root = document.getElementById('page-co
 
   lastListSignature = signature
   cachedLyrics = lyrics
-
-  const query = input?.value || ''
-  const selectionStart = input?.selectionStart
-  const selectionEnd = input?.selectionEnd
-  const hadFocus = document.activeElement === input
-
-  list.innerHTML = renderList(filterLyrics(cachedLyrics, query))
-
-  if (hadFocus && input) {
-    input.focus({ preventScroll: true })
-    if (typeof selectionStart === 'number' && typeof selectionEnd === 'number') {
-      input.setSelectionRange(selectionStart, selectionEnd)
-    }
-  }
-
+  list.innerHTML = renderList(filterLyrics(cachedLyrics, currentQuery))
   return true
 }

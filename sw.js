@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'crc-v__BUILD_ID__-noblink'
+const CACHE_VERSION = 'crc-v__BUILD_ID__'
 const SHELL_CACHE = `${CACHE_VERSION}-shell`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 
@@ -6,6 +6,7 @@ const SHELL_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './version.json',
   './css/main.css',
   './js/main.js',
   './js/router.js',
@@ -14,6 +15,7 @@ const SHELL_ASSETS = [
   './js/components/bottom-bar.js',
   './js/components/offline-banner.js',
   './js/components/install-prompt.js',
+  './js/components/confirm-modal.js',
   './js/lib/install-pwa.js',
   './js/pages/home.js',
   './js/pages/settings.js',
@@ -32,36 +34,62 @@ const SHELL_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS)).then(() => self.skipWaiting()),
+    caches
+      .open(SHELL_CACHE)
+      .then((cache) => cache.addAll(SHELL_ASSETS))
+      .then(() => self.skipWaiting()),
   )
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => (key.startsWith('crcl-') || key.startsWith('crc-')) && key !== SHELL_CACHE && key !== RUNTIME_CACHE)
-          .map((key) => caches.delete(key)),
-      ),
-    ).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter(
+              (key) =>
+                (key.startsWith('crcl-') || key.startsWith('crc-')) &&
+                key !== SHELL_CACHE &&
+                key !== RUNTIME_CACHE,
+            )
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
-
   if (request.method !== 'GET') return
 
   const url = new URL(request.url)
 
-  // App shell + same-origin assets: cache-first
+  // Always try network for version checks / SW updates
+  if (url.pathname.endsWith('/version.json') || url.pathname.endsWith('/sw.js')) {
+    event.respondWith(networkFirst(request))
+    return
+  }
+
   if (url.origin === self.location.origin) {
+    // HTML navigations: network first so deploys show up faster
+    if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+      event.respondWith(networkFirst(request))
+      return
+    }
+
     event.respondWith(cacheFirst(request))
     return
   }
 
-  // CDN / Supabase: network-first, fall back to cache
   event.respondWith(networkFirst(request))
 })
 
@@ -88,13 +116,22 @@ async function networkFirst(request) {
   const cache = await caches.open(RUNTIME_CACHE)
 
   try {
-    const response = await fetch(request)
+    const response = await fetch(request, { cache: 'no-store' })
     if (response.ok) {
       cache.put(request, response.clone())
+      // Also refresh shell cache copy for same-origin assets
+      if (new URL(request.url).origin === self.location.origin) {
+        const shell = await caches.open(SHELL_CACHE)
+        shell.put(request, response.clone())
+      }
     }
     return response
   } catch {
-    const cached = await cache.match(request)
+    const cached =
+      (await cache.match(request)) ||
+      (await caches.match(request, { ignoreSearch: true })) ||
+      (request.mode === 'navigate' ? await caches.match('./index.html') : null)
+
     if (cached) return cached
     return new Response('Offline', { status: 503, statusText: 'Offline' })
   }
