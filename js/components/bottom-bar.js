@@ -7,6 +7,15 @@ export function renderBottomBar(el) {
       </svg>
       <span>Home</span>
     </a>
+    <a href="#/schedule" data-nav="schedule" class="bottom-bar-center">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M3 10h18" />
+        <path d="M8 3v4M16 3v4" />
+        <path d="M8 14h3M13 14h3M8 17h3M13 17h3" />
+      </svg>
+      <span>Schedule</span>
+    </a>
     <a href="#/settings" data-nav="settings">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="3" />
@@ -18,8 +27,9 @@ export function renderBottomBar(el) {
 }
 
 export function setActiveNav(path) {
-  const active =
-    path.startsWith('/settings') || path.startsWith('/store') || path.startsWith('/privacy')
+  const active = path.startsWith('/schedule')
+    ? 'schedule'
+    : path.startsWith('/settings') || path.startsWith('/store') || path.startsWith('/privacy')
       ? 'settings'
       : 'home'
 

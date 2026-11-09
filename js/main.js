@@ -6,6 +6,7 @@ import { startRouter } from './router.js'
 import { removeBuiltInSamples } from './lib/lyrics-store.js'
 import { hasSupabaseConfig, startAutoSync } from './lib/lyrics-sync.js'
 import { registerServiceWorker } from './lib/register-sw.js'
+import { startNotifyService } from './lib/notify-service.js'
 
 async function boot() {
   const header = document.querySelector('[data-component="header"]')
@@ -19,6 +20,7 @@ async function boot() {
   await removeBuiltInSamples()
   startRouter()
   registerServiceWorker()
+  startNotifyService()
 
   if (hasSupabaseConfig()) {
     startAutoSync()

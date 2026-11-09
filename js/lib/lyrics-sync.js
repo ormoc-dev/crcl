@@ -7,6 +7,12 @@ import {
   replaceAllLyrics,
   getPendingSyncCount,
 } from './lyrics-store.js'
+import {
+  markScheduleSynced,
+  replaceAllSchedule,
+  ensureScheduleSeeded,
+} from './schedule-store.js'
+import { detectAndNotifySyncChanges } from './notify-service.js'
 
 let syncing = false
 let started = false
@@ -16,7 +22,7 @@ export function hasSupabaseConfig() {
   return Boolean(config.supabaseUrl && config.supabaseAnonKey)
 }
 
-function toRemoteRow(lyric) {
+function toRemoteLyric(lyric) {
   return {
     id: lyric.id,
     title: lyric.title,
@@ -24,6 +30,18 @@ function toRemoteRow(lyric) {
     key: lyric.key || '',
     body: lyric.body || '',
     updated_at: lyric.updated_at || new Date().toISOString(),
+  }
+}
+
+function toRemoteSchedule(item) {
+  return {
+    id: item.id,
+    type: item.type === 'practice' ? 'practice' : 'service',
+    day: item.day || '',
+    title: item.title || '',
+    time: item.time || '',
+    note: item.note || '',
+    updated_at: item.updated_at || new Date().toISOString(),
   }
 }
 
@@ -35,18 +53,34 @@ async function pushQueue() {
   let pushed = 0
 
   for (const item of queue) {
-    if (item.action === 'upsert') {
-      const { error } = await supabase
-        .from('lyrics')
-        .upsert(toRemoteRow(item.payload), { onConflict: 'id' })
+    const kind = item.kind === 'schedule' ? 'schedule' : 'lyric'
 
-      if (error) throw error
-      await markLyricSynced(item.lyricId)
-    }
+    if (kind === 'schedule') {
+      if (item.action === 'upsert') {
+        const { error } = await supabase
+          .from('schedule')
+          .upsert(toRemoteSchedule(item.payload), { onConflict: 'id' })
+        if (error) throw error
+        await markScheduleSynced(item.scheduleId)
+      }
 
-    if (item.action === 'delete') {
-      const { error } = await supabase.from('lyrics').delete().eq('id', item.lyricId)
-      if (error) throw error
+      if (item.action === 'delete') {
+        const { error } = await supabase.from('schedule').delete().eq('id', item.scheduleId)
+        if (error) throw error
+      }
+    } else {
+      if (item.action === 'upsert') {
+        const { error } = await supabase
+          .from('lyrics')
+          .upsert(toRemoteLyric(item.payload), { onConflict: 'id' })
+        if (error) throw error
+        await markLyricSynced(item.lyricId)
+      }
+
+      if (item.action === 'delete') {
+        const { error } = await supabase.from('lyrics').delete().eq('id', item.lyricId)
+        if (error) throw error
+      }
     }
 
     await removeSyncQueueItem(item.id)
@@ -60,14 +94,23 @@ async function pullRemote() {
   const supabase = getSupabase()
   if (!supabase) return { pulled: 0, error: 'missing-config' }
 
-  const { data, error } = await supabase
-    .from('lyrics')
-    .select('id,title,artist,key,body,updated_at')
-    .order('title', { ascending: true })
+  const [lyricsRes, scheduleRes] = await Promise.all([
+    supabase.from('lyrics').select('id,title,artist,key,body,updated_at').order('title', {
+      ascending: true,
+    }),
+    supabase
+      .from('schedule')
+      .select('id,type,day,title,time,note,updated_at')
+      .order('day', { ascending: true }),
+  ])
 
-  if (error) throw error
+  if (lyricsRes.error) throw lyricsRes.error
+  // Schedule table may not exist yet on older projects — keep lyrics sync working
+  if (scheduleRes.error && !/relation .*schedule.* does not exist|Could not find the table/i.test(scheduleRes.error.message || '')) {
+    throw scheduleRes.error
+  }
 
-  const rows = (data || []).map((row) => ({
+  const lyricRows = (lyricsRes.data || []).map((row) => ({
     id: row.id,
     title: row.title,
     artist: row.artist || '',
@@ -78,8 +121,38 @@ async function pullRemote() {
     deleted: false,
   }))
 
-  await replaceAllLyrics(rows)
-  return { pulled: rows.length }
+  await replaceAllLyrics(lyricRows)
+
+  let scheduleRows = []
+  if (!scheduleRes.error) {
+    scheduleRows = (scheduleRes.data || []).map((row) => ({
+      id: row.id,
+      type: row.type === 'practice' ? 'practice' : 'service',
+      day: row.day || '',
+      title: row.title || '',
+      time: row.time || '',
+      note: row.note || '',
+      updated_at: row.updated_at,
+      synced: true,
+      deleted: false,
+    }))
+
+    if (scheduleRows.length) {
+      await replaceAllSchedule(scheduleRows)
+    } else {
+      await ensureScheduleSeeded()
+    }
+  } else {
+    await ensureScheduleSeeded()
+  }
+
+  try {
+    await detectAndNotifySyncChanges({ lyrics: lyricRows, schedule: scheduleRows })
+  } catch (error) {
+    console.warn('Notify check failed:', error)
+  }
+
+  return { pulled: lyricRows.length }
 }
 
 export async function syncLyrics() {
@@ -99,6 +172,7 @@ export async function syncLyrics() {
   syncing = true
 
   try {
+    await ensureScheduleSeeded()
     const pushed = await pushQueue()
     const pulled = await pullRemote()
     const pending = await getPendingSyncCount()
@@ -110,7 +184,6 @@ export async function syncLyrics() {
       pending,
     }
 
-    // Notify UI quietly — listeners must not remount the whole page
     window.dispatchEvent(new CustomEvent('crc-sync', { detail: { status: 'done', ...result } }))
     return result
   } catch (error) {
@@ -141,7 +214,6 @@ export function startAutoSync() {
     if (document.visibilityState === 'visible') run()
   })
 
-  // Immediate + frequent background sync so other devices stay updated
   run()
   setInterval(run, 15_000)
 }

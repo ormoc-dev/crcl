@@ -1,10 +1,30 @@
 import { installHelpHtml, bindInstallHelp } from '../components/install-prompt.js'
 import { BUILD_ID } from '../build-id.js'
 import { checkForAppUpdate } from '../lib/register-sw.js'
+import {
+  enableNotifications,
+  notificationPermission,
+  notificationsEnabled,
+  notificationsSupported,
+  setNotificationsEnabled,
+} from '../lib/notify-service.js'
+
+function notifyStatusLabel() {
+  if (!notificationsSupported()) return 'Not supported on this device'
+  const perm = notificationPermission()
+  if (perm === 'denied') return 'Blocked in browser settings'
+  if (perm === 'granted' && notificationsEnabled()) return 'On — new lyrics & schedule'
+  if (perm === 'granted') return 'Allowed — currently off'
+  return 'Off — tap Enable'
+}
 
 export async function renderSettings() {
   const offline = !navigator.onLine
   const buildLabel = BUILD_ID === '__BUILD_ID__' ? 'local' : BUILD_ID
+  const notifyOn =
+    notificationsSupported() &&
+    notificationPermission() === 'granted' &&
+    notificationsEnabled()
 
   return `
     <section class="page">
@@ -18,8 +38,8 @@ export async function renderSettings() {
 
         <a class="settings-row settings-link" href="#/store">
           <div>
-            <strong>Store Lyrics</strong>
-            <span>Password locked — add or edit choir songs</span>
+            <strong>Manage Choir</strong>
+            <span>Password locked — lyrics, service schedule & practice</span>
           </div>
           <span class="settings-chevron" aria-hidden="true">›</span>
         </a>
@@ -30,6 +50,19 @@ export async function renderSettings() {
           </div>
           <span class="settings-chevron" aria-hidden="true">›</span>
         </a>
+        <div class="settings-row">
+          <div>
+            <strong>Notifications</strong>
+            <span id="settings-notify-label">${notifyStatusLabel()}</span>
+          </div>
+          ${
+            notificationsSupported()
+              ? `<button type="button" class="btn btn-ghost btn-sm" id="settings-notify-btn">
+                  ${notifyOn ? 'Turn off' : 'Enable'}
+                </button>`
+              : ''
+          }
+        </div>
         <div class="settings-row">
           <div>
             <strong>Connection</strong>
@@ -58,6 +91,40 @@ export async function renderSettings() {
 
 export function bindSettings(root) {
   bindInstallHelp(root)
+
+  const notifyBtn = root.querySelector('#settings-notify-btn')
+  const notifyLabel = root.querySelector('#settings-notify-label')
+
+  notifyBtn?.addEventListener('click', async () => {
+    const currentlyOn =
+      notificationPermission() === 'granted' && notificationsEnabled()
+
+    if (currentlyOn) {
+      setNotificationsEnabled(false)
+      notifyBtn.textContent = 'Enable'
+      if (notifyLabel) notifyLabel.textContent = notifyStatusLabel()
+      return
+    }
+
+    notifyBtn.disabled = true
+    notifyBtn.textContent = 'Allowing…'
+    const perm = await enableNotifications()
+    notifyBtn.disabled = false
+
+    if (perm === 'granted') {
+      notifyBtn.textContent = 'Turn off'
+      if (notifyLabel) notifyLabel.textContent = notifyStatusLabel()
+      return
+    }
+
+    notifyBtn.textContent = 'Enable'
+    if (notifyLabel) {
+      notifyLabel.textContent =
+        perm === 'denied'
+          ? 'Blocked — allow this site in browser settings'
+          : notifyStatusLabel()
+    }
+  })
 
   root.querySelector('#settings-check-update')?.addEventListener('click', async (event) => {
     const btn = event.currentTarget

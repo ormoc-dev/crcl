@@ -18,15 +18,20 @@ const SHELL_ASSETS = [
   './js/components/confirm-modal.js',
   './js/lib/install-pwa.js',
   './js/pages/home.js',
+  './js/pages/schedule.js',
   './js/pages/settings.js',
   './js/pages/store.js',
   './js/pages/privacy.js',
   './js/pages/lyrics.js',
+  './js/data/choir-schedule.js',
   './js/lib/supabase.js',
   './js/lib/lyrics-store.js',
+  './js/lib/schedule-store.js',
   './js/lib/lyrics-sync.js',
   './js/lib/store-auth.js',
   './js/lib/register-sw.js',
+  './js/lib/app-notify.js',
+  './js/lib/notify-service.js',
   './public/assets/icon/app_icon.jpg',
   './public/assets/icon/icon-192.png',
   './public/assets/icon/icon-512.png',
@@ -65,6 +70,40 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()
   }
+})
+
+self.addEventListener('notificationclick', (event) => {
+  const data = event.notification?.data || {}
+  event.notification.close()
+
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      const client = all.find((c) => 'focus' in c) || all[0] || null
+      const targetHash = String(data.url || '#/').startsWith('#')
+        ? String(data.url || '#/')
+        : `#${String(data.url || '/').replace(/^\//, '')}`
+
+      if (client) {
+        try {
+          await client.focus()
+        } catch {
+          /* ignore */
+        }
+        client.postMessage({
+          type: 'crc-notify-action',
+          data: { ...data, url: targetHash },
+        })
+        return
+      }
+
+      const base = self.registration.scope || './'
+      await self.clients.openWindow(`${base}${targetHash}`)
+    })(),
+  )
 })
 
 self.addEventListener('fetch', (event) => {

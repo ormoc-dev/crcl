@@ -1,4 +1,5 @@
 import { renderHome, bindHome, refreshHomeQuietly } from './pages/home.js'
+import { renderSchedule } from './pages/schedule.js'
 import { renderSettings, bindSettings } from './pages/settings.js'
 import { renderStore, bindStore } from './pages/store.js'
 import { renderPrivacy } from './pages/privacy.js'
@@ -11,6 +12,7 @@ export function getPath() {
 }
 
 async function resolvePage(path) {
+  if (path === '/schedule') return await renderSchedule()
   if (path === '/settings') return await renderSettings()
   if (path === '/store') return renderStore()
   if (path === '/privacy') return renderPrivacy()

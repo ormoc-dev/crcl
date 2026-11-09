@@ -216,7 +216,7 @@ textarea {
   bottom: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   padding: 0.35rem 0 calc(0.35rem + env(safe-area-inset-bottom));
   /* Matches manifest theme_color / background_color */
   background: #3f2a1a;
@@ -250,6 +250,103 @@ textarea {
 
 .bottom-bar a.is-active {
   color: #f2e4c9;
+}
+
+.bottom-bar-center.is-active svg {
+  stroke-width: 2;
+}
+
+.schedule-section {
+  margin-top: 0.35rem;
+}
+
+.schedule-section + .schedule-section {
+  margin-top: 1.25rem;
+}
+
+.schedule-section-title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.schedule-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.store-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  margin: 0.85rem 0 0.5rem;
+}
+
+.store-tab {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 4px;
+  min-height: 2.2rem;
+  padding: 0.4rem 0.35rem;
+  font-family: var(--font-brand);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.store-tab.is-active {
+  background: rgba(63, 42, 26, 0.08);
+  color: var(--brown-dark);
+  border-color: #c9a66b;
+}
+
+.schedule-item {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.85rem;
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.schedule-item-day {
+  font-family: var(--font-brand);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding-top: 0.15rem;
+}
+
+.schedule-item-body h2 {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--brown-dark);
+  letter-spacing: 0.02em;
+}
+
+.schedule-item-time {
+  margin: 0.2rem 0 0 !important;
+  color: var(--ink) !important;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.schedule-item-note {
+  margin: 0.25rem 0 0 !important;
+  color: var(--muted) !important;
+  font-size: 0.88rem;
 }
 
 .page {

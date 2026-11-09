@@ -1,12 +1,13 @@
 const DB_NAME = 'crcl-lyrics'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE = 'lyrics'
 const QUEUE = 'sync_queue'
+export const SCHEDULE_STORE = 'schedule'
 
 const BUILTIN_SAMPLE_IDS = new Set(['sample-1', 'sample-2'])
 const BUILTIN_SAMPLE_TITLES = new Set(['amazing grace', 'how great thou art'])
 
-function openDb() {
+export function openDb() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
 
@@ -22,6 +23,12 @@ function openDb() {
       if (!db.objectStoreNames.contains(QUEUE)) {
         db.createObjectStore(QUEUE, { keyPath: 'id', autoIncrement: true })
       }
+
+      if (!db.objectStoreNames.contains(SCHEDULE_STORE)) {
+        const schedule = db.createObjectStore(SCHEDULE_STORE, { keyPath: 'id' })
+        schedule.createIndex('type', 'type', { unique: false })
+        schedule.createIndex('updated_at', 'updated_at', { unique: false })
+      }
     }
 
     request.onsuccess = () => resolve(request.result)
@@ -29,7 +36,7 @@ function openDb() {
   })
 }
 
-function txDone(tx) {
+export function txDone(tx) {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
