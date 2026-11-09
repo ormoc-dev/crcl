@@ -1,5 +1,6 @@
 import { getPendingSyncCount } from '../lib/lyrics-store.js'
 import { hasSupabaseConfig } from '../lib/lyrics-sync.js'
+import { installHelpHtml, bindInstallHelp } from '../components/install-prompt.js'
 
 export async function renderSettings() {
   const offline = !navigator.onLine
@@ -14,6 +15,8 @@ export async function renderSettings() {
       </div>
 
       <div class="settings-list">
+        ${installHelpHtml()}
+
         <a class="settings-row settings-link" href="#/store">
           <div>
             <strong>Store Lyrics</strong>
@@ -63,4 +66,8 @@ export async function renderSettings() {
       </div>
     </section>
   `
+}
+
+export function bindSettings(root) {
+  bindInstallHelp(root)
 }

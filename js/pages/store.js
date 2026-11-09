@@ -27,7 +27,14 @@ function lockScreen(error = '') {
     <section class="page store-page">
       <div class="store-top">
         <h1>Store Lyrics</h1>
-        <p>Enter password to manage songs.</p>
+        <p>Password required to add or edit choir songs.</p>
+      </div>
+
+      <div class="store-help">
+        <p>
+          To store lyrics, please contact the developer, or ask
+          <strong>Djen</strong> / <strong>April</strong> for access.
+        </p>
       </div>
 
       <form class="store-lock" id="store-lock-form">

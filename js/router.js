@@ -1,5 +1,5 @@
 import { renderHome, bindHome, refreshHomeQuietly } from './pages/home.js'
-import { renderSettings } from './pages/settings.js'
+import { renderSettings, bindSettings } from './pages/settings.js'
 import { renderStore, bindStore } from './pages/store.js'
 import { renderPrivacy } from './pages/privacy.js'
 import { renderLyric } from './pages/lyrics.js'
@@ -33,6 +33,7 @@ export async function renderRoute() {
   setActiveNav(path)
 
   if (path === '/' || path === '') bindHome(mount)
+  if (path === '/settings') bindSettings(mount)
   if (path === '/store') bindStore(mount)
 }
 

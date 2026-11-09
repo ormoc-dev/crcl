@@ -13,6 +13,8 @@ const SHELL_ASSETS = [
   './js/components/header.js',
   './js/components/bottom-bar.js',
   './js/components/offline-banner.js',
+  './js/components/install-prompt.js',
+  './js/lib/install-pwa.js',
   './js/pages/home.js',
   './js/pages/settings.js',
   './js/pages/store.js',

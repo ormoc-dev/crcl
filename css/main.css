@@ -170,6 +170,87 @@ textarea {
   font-weight: 700;
 }
 
+.install-prompt {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--brown-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.install-prompt-wide {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.install-prompt-wide .install-prompt-actions {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.install-prompt-copy {
+  min-width: 0;
+}
+
+.install-prompt-copy strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--brown-dark);
+  font-size: 0.92rem;
+}
+
+.install-prompt-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.install-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.settings-help {
+  padding: 0.85rem 0 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-help strong {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--brown-dark);
+}
+
+.settings-help p,
+.settings-help ol {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.settings-help ol {
+  padding-left: 1.15rem;
+}
+
+.settings-help li {
+  margin-bottom: 0.3rem;
+}
+
+.settings-help-note {
+  margin-top: 0.65rem !important;
+  margin-bottom: 0 !important;
+  font-size: 0.8rem !important;
+}
+
 .page-head {
   margin-bottom: 0.85rem;
   padding: 0 0 0.85rem;
@@ -465,6 +546,23 @@ textarea {
 
 .store-status {
   color: var(--muted);
+}
+
+.store-help {
+  margin: 0.15rem 0 0.35rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.store-help p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.store-help strong {
+  color: var(--brown-dark);
 }
 
 .store-lock,
