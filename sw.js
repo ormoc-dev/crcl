@@ -6,11 +6,11 @@ const SHELL_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './version.json',
   './css/main.css',
   './js/main.js',
   './js/router.js',
   './js/config.js',
+  './js/build-id.js',
   './js/components/header.js',
   './js/components/bottom-bar.js',
   './js/components/offline-banner.js',
@@ -73,8 +73,13 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
 
-  // Always try network for version checks / SW updates
-  if (url.pathname.endsWith('/version.json') || url.pathname.endsWith('/sw.js')) {
+  // Always try network for version checks / SW updates / app code
+  if (
+    url.pathname.endsWith('/version.json') ||
+    url.pathname.endsWith('/sw.js') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css')
+  ) {
     event.respondWith(networkFirst(request))
     return
   }

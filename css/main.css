@@ -218,8 +218,9 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 0.35rem 0 calc(0.35rem + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, #4a3220 0%, var(--leather-deep) 100%);
-  border-top: 2px solid #c9a66b;
+  /* Matches manifest theme_color / background_color */
+  background: #3f2a1a;
+  border-top: 2px solid #f2e4c9;
 }
 
 .bottom-bar a {
@@ -229,7 +230,7 @@ textarea {
   justify-content: center;
   gap: 0.15rem;
   min-height: 3.4rem;
-  color: #d7c2a2;
+  color: rgba(242, 228, 201, 0.62);
   font-family: var(--font-brand);
   font-size: 0.68rem;
   font-weight: 700;
@@ -248,7 +249,7 @@ textarea {
 }
 
 .bottom-bar a.is-active {
-  color: #f7edd8;
+  color: #f2e4c9;
 }
 
 .page {

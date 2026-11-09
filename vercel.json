@@ -40,5 +40,10 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!sw\\.js$|version\\.json$|manifest\\.webmanifest$).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
