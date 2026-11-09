@@ -10,6 +10,7 @@ import {
 
 let syncing = false
 let started = false
+let queuedAgain = false
 
 export function hasSupabaseConfig() {
   return Boolean(config.supabaseUrl && config.supabaseAnonKey)
@@ -91,11 +92,11 @@ export async function syncLyrics() {
   }
 
   if (syncing) {
+    queuedAgain = true
     return { ok: false, reason: 'busy' }
   }
 
   syncing = true
-  window.dispatchEvent(new CustomEvent('crc-sync', { detail: { status: 'start' } }))
 
   try {
     const pushed = await pushQueue()
@@ -109,18 +110,20 @@ export async function syncLyrics() {
       pending,
     }
 
+    // Notify UI quietly — listeners must not remount the whole page
     window.dispatchEvent(new CustomEvent('crc-sync', { detail: { status: 'done', ...result } }))
     return result
   } catch (error) {
     console.warn('Lyrics sync failed:', error)
-    window.dispatchEvent(
-      new CustomEvent('crc-sync', {
-        detail: { status: 'error', message: error.message || 'Sync failed' },
-      }),
-    )
     return { ok: false, reason: 'error', error }
   } finally {
     syncing = false
+    if (queuedAgain) {
+      queuedAgain = false
+      setTimeout(() => {
+        syncLyrics()
+      }, 300)
+    }
   }
 }
 
@@ -133,10 +136,12 @@ export function startAutoSync() {
   }
 
   window.addEventListener('online', run)
+  window.addEventListener('focus', run)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') run()
   })
 
+  // Immediate + frequent background sync so other devices stay updated
   run()
-  setInterval(run, 60_000)
+  setInterval(run, 15_000)
 }

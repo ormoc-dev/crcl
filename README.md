@@ -1,49 +1,35 @@
-# CRCL · Choir Lyrics PWA
+# Christus Rex Choir Song Lyrics
 
-Plain HTML, CSS, and JavaScript choir lyrics viewer. Installable as a PWA and usable offline.
-
-## Features
-
-- Lyrics list + full lyrics view
-- Progressive Web App (install on phone/desktop)
-- Offline app shell via service worker
-- Lyrics saved in IndexedDB for offline reading
-- Ready for Supabase + Vercel
-
-## Structure
-
-```text
-crcl/
-├── index.html
-├── manifest.webmanifest
-├── sw.js
-├── css/main.css
-├── js/
-│   ├── main.js
-│   ├── router.js
-│   ├── config.js
-│   ├── components/
-│   ├── pages/
-│   └── lib/
-│       ├── lyrics-store.js
-│       ├── register-sw.js
-│       └── supabase.js
-└── public/assets/icon/
-```
+Static HTML/CSS/JS PWA. Deployed the same way as the movie/lantaw app.
 
 ## Local
 
-Service workers need HTTPS or `localhost`:
-
 ```bash
-cd crcl
+cp .env.example .env
+# fill VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
+npm run sync-env
 npx serve .
 ```
 
-Open the URL, use the app once online, then try airplane mode.
+## Build (same as movie app)
 
-## Offline notes
+```bash
+npm run build
+```
 
-1. First visit caches the app files in the service worker
-2. Sample lyrics are stored in IndexedDB automatically
-3. Later, sync from Supabase into `lyrics-store` so choir songs stay available offline
+Creates `dist/` with env synced + stamped cache busting.
+
+## Vercel
+
+1. Import `ormoc-dev/crcl`
+2. Framework: **Other** (vercel.json sets `framework: null`)
+3. Build uses `vercel.json`:
+   - Install: `echo skip-install`
+   - Build: sync-env → build-dist → stamp-build
+   - Output: `dist`
+4. Add Environment Variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+5. Redeploy
+
+Also run `supabase/schema.sql` once in the Supabase SQL editor.

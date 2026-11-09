@@ -1,4 +1,4 @@
-import { renderHome, bindHome } from './pages/home.js'
+import { renderHome, bindHome, refreshHomeQuietly } from './pages/home.js'
 import { renderSettings } from './pages/settings.js'
 import { renderStore, bindStore } from './pages/store.js'
 import { renderPrivacy } from './pages/privacy.js'
@@ -27,8 +27,9 @@ export async function renderRoute() {
 
   if (!mount) return
 
-  mount.innerHTML = '<section class="page"><p>Loading…</p></section>'
-  mount.innerHTML = await resolvePage(path)
+  // Keep current page visible until the next page is ready (no loading blink)
+  const html = await resolvePage(path)
+  mount.innerHTML = html
   setActiveNav(path)
 
   if (path === '/' || path === '') bindHome(mount)
@@ -37,12 +38,15 @@ export async function renderRoute() {
 
 export function startRouter() {
   window.addEventListener('hashchange', renderRoute)
+
+  // Auto-sync must NOT remount pages — only quietly refresh the home list
   window.addEventListener('crc-sync', (event) => {
     if (event.detail?.status !== 'done') return
     const path = getPath()
-    if (path === '/' || path === '' || path === '/settings' || path === '/store') {
-      renderRoute()
+    if (path === '/' || path === '') {
+      refreshHomeQuietly()
     }
   })
+
   renderRoute()
 }

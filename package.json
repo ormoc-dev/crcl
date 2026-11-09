@@ -1,0 +1,12 @@
+{
+  "name": "crc-songs",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Christus Rex Choir Song Lyrics — static PWA",
+  "type": "module",
+  "scripts": {
+    "sync-env": "node scripts/sync-env.mjs",
+    "build": "node scripts/sync-env.mjs && node scripts/build-dist.mjs && node scripts/stamp-build.mjs",
+    "stamp-build": "node scripts/stamp-build.mjs"
+  }
+}

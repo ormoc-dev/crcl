@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'crc-v9'
+const CACHE_VERSION = 'crc-v__BUILD_ID__-noblink'
 const SHELL_CACHE = `${CACHE_VERSION}-shell`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 

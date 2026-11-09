@@ -1,6 +1,7 @@
 import { ensureSeedLyrics, getAllLyrics } from '../lib/lyrics-store.js'
 
 let cachedLyrics = []
+let lastListSignature = ''
 
 function lyricListItem(lyric) {
   const initial = (lyric.title || '?').trim().charAt(0).toUpperCase()
@@ -38,6 +39,13 @@ function filterLyrics(lyrics, query) {
   })
 }
 
+function listSignature(lyrics) {
+  return lyrics
+    .map((lyric) => `${lyric.id}:${lyric.updated_at}:${lyric.title}:${lyric.key}:${lyric.artist}`)
+    .sort()
+    .join('|')
+}
+
 function renderList(lyrics) {
   if (!lyrics.length) {
     return '<p class="empty-state">No songs found.</p>'
@@ -53,6 +61,7 @@ function renderList(lyrics) {
 export async function renderHome() {
   cachedLyrics = await getAllLyrics()
   if (!cachedLyrics.length) cachedLyrics = await ensureSeedLyrics()
+  lastListSignature = listSignature(cachedLyrics)
 
   return `
     <section class="page lyrics-page">
@@ -84,4 +93,36 @@ export function bindHome(root) {
   input.addEventListener('input', () => {
     list.innerHTML = renderList(filterLyrics(cachedLyrics, input.value))
   })
+}
+
+/** Update song list after background sync without remounting the page. */
+export async function refreshHomeQuietly(root = document.getElementById('page-content')) {
+  if (!root) return false
+
+  const list = root.querySelector('.lyric-list')
+  const input = root.querySelector('#lyric-search')
+  if (!list) return false
+
+  const lyrics = await getAllLyrics()
+  const signature = listSignature(lyrics)
+  if (signature === lastListSignature) return false
+
+  lastListSignature = signature
+  cachedLyrics = lyrics
+
+  const query = input?.value || ''
+  const selectionStart = input?.selectionStart
+  const selectionEnd = input?.selectionEnd
+  const hadFocus = document.activeElement === input
+
+  list.innerHTML = renderList(filterLyrics(cachedLyrics, query))
+
+  if (hadFocus && input) {
+    input.focus({ preventScroll: true })
+    if (typeof selectionStart === 'number' && typeof selectionEnd === 'number') {
+      input.setSelectionRange(selectionStart, selectionEnd)
+    }
+  }
+
+  return true
 }

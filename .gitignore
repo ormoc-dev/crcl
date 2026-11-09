@@ -1,15 +1,7 @@
-# Env / secrets
 .env
 .env.local
-.js/config.local.js
-
-# OS / editor
 .DS_Store
-.idea
-.vscode/*
-!.vscode/extensions.json
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+node_modules/
+dist/
+.vercel/

@@ -42,8 +42,8 @@ export async function renderSettings() {
                 !supabaseReady
                   ? 'Not configured'
                   : pending
-                    ? `${pending} change(s) waiting to upload`
-                    : 'Ready — auto sync when online'
+                    ? `${pending} change(s) syncing automatically…`
+                    : 'Automatic — no Sync button needed'
               }
             </span>
           </div>

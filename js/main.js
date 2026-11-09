@@ -3,7 +3,7 @@ import { renderBottomBar } from './components/bottom-bar.js'
 import { renderOfflineBanner } from './components/offline-banner.js'
 import { startRouter } from './router.js'
 import { ensureSeedLyrics } from './lib/lyrics-store.js'
-import { hasSupabaseConfig, startAutoSync, syncLyrics } from './lib/lyrics-sync.js'
+import { hasSupabaseConfig, startAutoSync } from './lib/lyrics-sync.js'
 import { registerServiceWorker } from './lib/register-sw.js'
 
 async function boot() {
@@ -24,8 +24,6 @@ async function boot() {
     console.warn('Supabase is not configured in js/config.js — local-only mode.')
   }
 
-  // Expose manual sync for settings button
-  window.crcSyncLyrics = syncLyrics
 }
 
 boot()

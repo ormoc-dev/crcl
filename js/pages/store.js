@@ -23,10 +23,10 @@ function syncHint() {
   }
 
   if (!navigator.onLine) {
-    return 'You are offline. Changes save here and will upload automatically when online.'
+    return 'Offline — saved here now, uploads automatically when back online.'
   }
 
-  return 'Online. Changes sync to Supabase so other choir devices can update.'
+  return 'Auto sync is on — saves upload to Supabase for other devices.'
 }
 
 function lockScreen(error = '') {
@@ -55,7 +55,7 @@ function lockScreen(error = '') {
 }
 
 function songRow(lyric) {
-  const pending = lyric.synced === false ? ' · Pending sync' : ''
+  const pending = lyric.synced === false ? ' · Syncing…' : ''
 
   return `
     <div class="store-song" data-id="${escapeHtml(lyric.id)}">
@@ -108,7 +108,7 @@ async function unlockedScreen(mode = 'list', editingId = null, notice = '') {
         <div>
           <h1>Store Lyrics</h1>
           <p>${escapeHtml(syncHint())}</p>
-          ${pending ? `<p class="sync-pending">${pending} change(s) waiting to upload.</p>` : ''}
+          ${pending ? `<p class="sync-pending">${pending} change(s) syncing automatically…</p>` : ''}
           ${notice ? `<p class="sync-notice">${escapeHtml(notice)}</p>` : ''}
         </div>
         <button type="button" class="btn btn-ghost" id="store-lock-btn">Lock</button>
@@ -120,7 +120,6 @@ async function unlockedScreen(mode = 'list', editingId = null, notice = '') {
           : `
             <div class="form-actions store-toolbar">
               <button type="button" class="btn btn-primary" id="store-add">Add song</button>
-              <button type="button" class="btn btn-ghost" id="store-sync">Sync now</button>
             </div>
             <div class="store-song-list">
               ${lyrics.map(songRow).join('') || '<p class="empty-state">No songs stored yet.</p>'}
@@ -131,8 +130,15 @@ async function unlockedScreen(mode = 'list', editingId = null, notice = '') {
   `
 }
 
+async function saveAndSync(lyricInput) {
+  const saved = await saveLyric(lyricInput)
+  const result = await syncLyrics()
+  return { saved, result }
+}
+
 export async function renderStore() {
   if (!isStoreUnlocked()) return lockScreen()
+  syncLyrics()
   return unlockedScreen('list')
 }
 
@@ -148,6 +154,7 @@ export function bindStore(root) {
         root.querySelector('#store-password')?.focus()
         return
       }
+      syncLyrics()
       root.innerHTML = await unlockedScreen('list')
       bindStore(root)
     })
@@ -170,24 +177,6 @@ export function bindStore(root) {
     bindStore(root)
   })
 
-  root.querySelector('#store-sync')?.addEventListener('click', async () => {
-    const result = await syncLyrics()
-    let notice = 'Sync finished.'
-
-    if (!result.ok && result.reason === 'offline') {
-      notice = 'Still offline. Changes will upload when internet returns.'
-    } else if (!result.ok && result.reason === 'missing-config') {
-      notice = 'Add Supabase keys in js/config.js first.'
-    } else if (!result.ok) {
-      notice = 'Sync failed. Check Supabase setup and try again.'
-    } else {
-      notice = `Synced. Uploaded ${result.pushed}, downloaded ${result.pulled}.`
-    }
-
-    root.innerHTML = await unlockedScreen('list', null, notice)
-    bindStore(root)
-  })
-
   root.querySelectorAll('.store-song').forEach((row) => {
     const id = row.dataset.id
 
@@ -201,7 +190,11 @@ export function bindStore(root) {
       if (!confirm(`Delete "${title}"?`)) return
       await deleteLyric(id)
       await syncLyrics()
-      root.innerHTML = await unlockedScreen('list', null, 'Song deleted. Sync will finish when online.')
+      root.innerHTML = await unlockedScreen(
+        'list',
+        null,
+        navigator.onLine ? 'Song deleted and synced.' : 'Song deleted. Will sync when online.',
+      )
       bindStore(root)
     })
   })
@@ -211,7 +204,7 @@ export function bindStore(root) {
     event.preventDefault()
     const data = new FormData(form)
 
-    await saveLyric({
+    await saveAndSync({
       id: String(data.get('id') || '') || undefined,
       title: String(data.get('title') || '').trim(),
       artist: String(data.get('artist') || '').trim(),
@@ -219,13 +212,10 @@ export function bindStore(root) {
       body: String(data.get('body') || '').trim(),
     })
 
-    await syncLyrics()
     root.innerHTML = await unlockedScreen(
       'list',
       null,
-      navigator.onLine
-        ? 'Song saved and sync started.'
-        : 'Song saved offline. It will upload automatically when online.',
+      navigator.onLine ? 'Song saved and synced.' : 'Song saved offline. Will sync when online.',
     )
     bindStore(root)
   })

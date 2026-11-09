@@ -2,7 +2,7 @@
   "name": "Christus Rex Choir Song Lyrics",
   "short_name": "CRC",
   "description": "Christus Rex Choir Song Lyrics viewer with offline access",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -11,19 +11,19 @@
   "lang": "en",
   "icons": [
     {
-      "src": "./public/assets/icon/icon-192.png",
+      "src": "public/assets/icon/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/assets/icon/icon-512.png",
+      "src": "public/assets/icon/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./public/assets/icon/icon-512.png",
+      "src": "public/assets/icon/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
