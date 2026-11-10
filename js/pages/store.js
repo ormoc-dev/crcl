@@ -410,7 +410,13 @@ export function bindStore(root) {
     lockForm.addEventListener('submit', async (event) => {
       event.preventDefault()
       const password = new FormData(lockForm).get('password')
-      if (!unlockStore(String(password || ''))) {
+      const submitBtn = lockForm.querySelector('button[type="submit"]')
+      if (submitBtn) {
+        submitBtn.disabled = true
+        submitBtn.textContent = 'Checking…'
+      }
+      const ok = await unlockStore(String(password || ''))
+      if (!ok) {
         root.innerHTML = lockScreen('Incorrect password.')
         bindStore(root)
         root.querySelector('#store-password')?.focus()

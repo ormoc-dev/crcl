@@ -73,11 +73,14 @@ export async function ensurePracticeDocCached(doc) {
   const response = await fetch(href)
   if (!response.ok) throw new Error(`Could not download file (${response.status}).`)
 
-  const blob = await response.blob()
+  const raw = await response.blob()
+  const mime = doc.mime || raw.type || guessMime(doc.name)
+  const blob =
+    mime && raw.type !== mime ? new Blob([raw], { type: mime }) : raw
   return putCachedPracticeDoc({
     path,
     name: doc.name || 'document',
-    mime: doc.mime || blob.type || guessMime(doc.name),
+    mime,
     blob,
     size: doc.size || blob.size,
     url: href,

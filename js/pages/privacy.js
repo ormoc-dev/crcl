@@ -18,10 +18,12 @@ export function renderPrivacy() {
         </article>
 
         <article>
-          <h2>Password lock</h2>
+          <h2>App PIN &amp; Manage Choir password</h2>
           <p>
-            The Store Lyrics password stays on this device for the current browser
-            session only. Closing the tab locks Store Lyrics again.
+            A 4-digit PIN unlocks the app and is remembered on this device after a
+            correct entry. The Manage Choir password unlocks editing for the current
+            browser session only. Both values are stored in Supabase
+            <code>app_settings</code> and cached locally for offline checks.
           </p>
         </article>
 

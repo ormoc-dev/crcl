@@ -156,7 +156,7 @@ export function installHelpHtml() {
       <div class="settings-row">
         <div>
           <strong>App install</strong>
-          <span>Already installed on this device</span>
+          <span>Installed</span>
         </div>
       </div>
     `
@@ -167,28 +167,23 @@ export function installHelpHtml() {
     return `
       <div class="settings-help">
         <strong>Opened in ${app}</strong>
-        <p>
-          Messenger / Instagram / Facebook browsers cannot install the app directly.
-          Open the link in your phone browser first.
-        </p>
+        <p>Open in your phone browser to install.</p>
         <ol>
           ${
             isIos()
               ? `
-                <li>Tap <b>⋯</b> → <b>Open in Safari</b> (or copy the link)</li>
-                <li>In Safari, tap <b>Share</b></li>
-                <li>Tap <b>Add to Home Screen</b></li>
+                <li><b>⋯</b> → <b>Open in Safari</b></li>
+                <li>Share → <b>Add to Home Screen</b></li>
               `
               : `
-                <li>Tap <b>Open in Chrome</b> below</li>
-                <li>In Chrome, tap <b>Install</b> (or menu ⋮ → Install app)</li>
+                <li>Tap <b>Open in Chrome</b></li>
+                <li>Menu ⋮ → <b>Install app</b></li>
               `
           }
         </ol>
         <button type="button" class="btn btn-primary btn-block" id="settings-open-browser">
-          ${isIos() ? 'Copy link for Safari' : 'Open in Chrome'}
+          ${isIos() ? 'Copy Safari link' : 'Open in Chrome'}
         </button>
-        <p class="settings-help-note">Link: ${getShareUrl()}</p>
       </div>
     `
   }
@@ -196,14 +191,11 @@ export function installHelpHtml() {
   if (isIos()) {
     return `
       <div class="settings-help">
-        <strong>Install on iPhone / iPad</strong>
+        <strong>Install on iPhone</strong>
         <ol>
-          <li>Open this site in <b>Safari</b></li>
-          <li>Tap the <b>Share</b> button</li>
-          <li>Tap <b>Add to Home Screen</b></li>
-          <li>Tap <b>Add</b></li>
+          <li>Open in <b>Safari</b></li>
+          <li><b>Share</b> → <b>Add to Home Screen</b></li>
         </ol>
-        <p class="settings-help-note">If you opened this from Messenger/Instagram, first tap ⋯ → Open in Safari.</p>
       </div>
     `
   }
@@ -211,14 +203,10 @@ export function installHelpHtml() {
   return `
     <div class="settings-help">
       <strong>Install on Android</strong>
-      <p>Tap the button below to install the app on your phone.</p>
       <button type="button" class="btn btn-primary btn-block" id="settings-install-btn">
         Install app
       </button>
-      <p class="settings-help-note">
-        If you opened this from Messenger/Instagram/Facebook, tap menu → Open in Chrome first.
-        Then use Install.
-      </p>
+      <p class="settings-help-note">From Messenger? Open in Chrome first.</p>
     </div>
   `
 }

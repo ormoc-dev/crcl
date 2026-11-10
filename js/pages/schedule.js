@@ -100,20 +100,32 @@ function songsPanelHtml(songs) {
     .join('')
 }
 
+function scheduleDateParts(day) {
+  const short = formatScheduleDayShort(day)
+  const long = formatScheduleDayLong(day)
+  const dateBit =
+    short !== long ? long.replace(/^[^,]+,\s*/, '') : isLikelyIsoDay(day) ? '' : ''
+  return { short, dateBit }
+}
+
+function isLikelyIsoDay(day) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(day || '').trim())
+}
+
 function scheduleCard(item) {
   const docs = itemDocs(item)
   const songs = item.type === 'service' ? parseSongs(item.songs) : []
   const hasDocs = docs.length > 0
   const hasSongs = songs.length > 0
-  const kind = item.type === 'practice' ? 'Practice' : 'Service'
+  const { short, dateBit } = scheduleDateParts(item.day)
   const badge = hasSongs
-    ? `${songs.length} song${songs.length === 1 ? '' : 's'}`
+    ? `${songs.length}`
     : hasDocs
-      ? `${docs.length} file${docs.length === 1 ? '' : 's'}`
-      : item.type === 'practice'
-        ? 'No files'
-        : 'No songs'
+      ? `${docs.length}`
+      : '0'
+  const badgeLabel = hasSongs ? 'songs' : hasDocs ? 'files' : item.type === 'practice' ? 'files' : 'songs'
   const expandable = hasDocs || hasSongs || item.type === 'practice' || item.type === 'service'
+  const meta = [item.time, dateBit].filter(Boolean).join(' · ')
 
   return `
     <article class="schedule-card${expandable ? ' is-expandable' : ''}${hasDocs || hasSongs ? ' has-files' : ''}" data-schedule-id="${escapeHtml(item.id || '')}" data-schedule-type="${escapeHtml(item.type || '')}">
@@ -122,28 +134,25 @@ function scheduleCard(item) {
         class="schedule-card-main"
         ${expandable ? `aria-expanded="false"` : 'disabled'}
       >
-        <div class="schedule-card-day">
-          <span>${escapeHtml(formatScheduleDayShort(item.day))}</span>
-          ${
-            formatScheduleDayShort(item.day) !== formatScheduleDayLong(item.day)
-              ? `<small>${escapeHtml(formatScheduleDayLong(item.day).replace(/^[^,]+,\s*/, ''))}</small>`
-              : ''
-          }
+        <div class="schedule-card-day" aria-hidden="true">
+          <span>${escapeHtml(short)}</span>
         </div>
         <div class="schedule-card-copy">
-          <p class="schedule-card-kind">${escapeHtml(kind)}</p>
           <h2>${escapeHtml(item.title || 'Untitled')}</h2>
-          <p class="schedule-card-time">${escapeHtml(item.time || '')}</p>
-          ${item.note ? `<p class="schedule-card-note">${escapeHtml(item.note)}</p>` : ''}
+          <p class="schedule-card-meta">${escapeHtml(meta || '—')}</p>
         </div>
         <div class="schedule-card-aside">
-          <span class="schedule-card-files${hasDocs || hasSongs ? ' is-ready' : ''}">${escapeHtml(badge)}</span>
+          <span class="schedule-card-files${hasDocs || hasSongs ? ' is-ready' : ''}" title="${escapeHtml(badgeLabel)}">
+            ${escapeHtml(badge)}
+            <small>${escapeHtml(badgeLabel)}</small>
+          </span>
           ${expandable ? `<span class="schedule-card-chevron" aria-hidden="true"></span>` : ''}
         </div>
       </button>
       ${
         expandable
           ? `<div class="schedule-card-docs" hidden>
+              ${item.note ? `<p class="schedule-card-note">${escapeHtml(item.note)}</p>` : ''}
               ${
                 item.type === 'service'
                   ? `<div class="schedule-card-docs-head">Songs</div>
@@ -284,10 +293,10 @@ export async function renderSchedule() {
   const all = await getAllSchedule()
 
   return `
-    <section class="page">
-      <div class="page-head">
+    <section class="page schedule-page">
+      <div class="page-head page-head-compact">
         <h1>Schedule</h1>
-        <p>Christus Rex Choir service & practice times</p>
+        <p>Service & practice</p>
       </div>
       <div class="schedule-page-body">
         ${scheduleBodyHtml(all)}

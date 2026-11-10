@@ -10,14 +10,12 @@ import {
 } from '../lib/notify-service.js'
 
 function notifyStatusLabel() {
-  if (!notificationsSupported()) return 'Not supported on this device'
+  if (!notificationsSupported()) return 'Not supported'
   const perm = notificationPermission()
-  if (perm === 'denied') return 'Blocked in browser settings'
-  if (perm === 'granted' && notificationsEnabled()) {
-    return 'On — alerts even when app is closed'
-  }
-  if (perm === 'granted') return 'Allowed — currently off'
-  return 'Off — tap Enable (install app on iPhone first)'
+  if (perm === 'denied') return 'Blocked in browser'
+  if (perm === 'granted' && notificationsEnabled()) return 'On · works when closed'
+  if (perm === 'granted') return 'Allowed · currently off'
+  return 'Off · enable for alerts'
 }
 
 export async function renderSettings() {
@@ -29,10 +27,10 @@ export async function renderSettings() {
     notificationsEnabled()
 
   return `
-    <section class="page">
-      <div class="page-head">
+    <section class="page settings-page">
+      <div class="page-head page-head-compact">
         <h1>Settings</h1>
-        <p>Manage Christus Rex Choir Song Lyrics on this device.</p>
+        <p>This device</p>
       </div>
 
       <div class="settings-list">
@@ -41,14 +39,14 @@ export async function renderSettings() {
         <a class="settings-row settings-link" href="#/store">
           <div>
             <strong>Manage Choir</strong>
-            <span>Password locked — lyrics, service schedule & practice</span>
+            <span>Lyrics, schedule & practice</span>
           </div>
           <span class="settings-chevron" aria-hidden="true">›</span>
         </a>
         <a class="settings-row settings-link" href="#/privacy">
           <div>
             <strong>Privacy</strong>
-            <span>How song data is stored on this device</span>
+            <span>How data is stored</span>
           </div>
           <span class="settings-chevron" aria-hidden="true">›</span>
         </a>
@@ -60,7 +58,7 @@ export async function renderSettings() {
           ${
             notificationsSupported()
               ? `<button type="button" class="btn btn-ghost btn-sm" id="settings-notify-btn">
-                  ${notifyOn ? 'Turn off' : 'Enable'}
+                  ${notifyOn ? 'Off' : 'Enable'}
                 </button>`
               : ''
           }
@@ -68,13 +66,13 @@ export async function renderSettings() {
         <div class="settings-row">
           <div>
             <strong>Connection</strong>
-            <span>${offline ? 'Offline — local edits wait for sync' : 'Online'}</span>
+            <span>${offline ? 'Offline' : 'Online'}</span>
           </div>
         </div>
         <div class="settings-row">
           <div>
             <strong>Offline storage</strong>
-            <span>Lyrics saved on this device, then synced to cloud</span>
+            <span>Saved on device · syncs online</span>
           </div>
         </div>
         <div class="settings-row">
@@ -83,7 +81,7 @@ export async function renderSettings() {
             <span id="settings-build-label">${buildLabel}</span>
           </div>
           <button type="button" class="btn btn-ghost btn-sm" id="settings-check-update">
-            Check update
+            Update
           </button>
         </div>
       </div>
@@ -109,16 +107,13 @@ export function bindSettings(root) {
     }
 
     notifyBtn.disabled = true
-    notifyBtn.textContent = 'Allowing…'
+    notifyBtn.textContent = '…'
     const perm = await enableNotifications()
     notifyBtn.disabled = false
 
     if (perm === 'granted') {
-      notifyBtn.textContent = 'Turn off'
-      if (notifyLabel) {
-        notifyLabel.textContent = 'On — registering this device…'
-      }
-      // Label settles after push subscribe finishes inside enableNotifications
+      notifyBtn.textContent = 'Off'
+      if (notifyLabel) notifyLabel.textContent = 'On · registering…'
       window.setTimeout(() => {
         if (notifyLabel) notifyLabel.textContent = notifyStatusLabel()
       }, 800)
@@ -128,9 +123,7 @@ export function bindSettings(root) {
     notifyBtn.textContent = 'Enable'
     if (notifyLabel) {
       notifyLabel.textContent =
-        perm === 'denied'
-          ? 'Blocked — allow this site in browser settings'
-          : notifyStatusLabel()
+        perm === 'denied' ? 'Blocked in browser' : notifyStatusLabel()
     }
   })
 
@@ -138,7 +131,7 @@ export function bindSettings(root) {
     const btn = event.currentTarget
     const label = root.querySelector('#settings-build-label')
     btn.disabled = true
-    btn.textContent = 'Checking…'
+    btn.textContent = '…'
     try {
       const result = await checkForAppUpdate({ force: true })
       if (label && result?.build) label.textContent = result.build
@@ -146,13 +139,13 @@ export function bindSettings(root) {
         btn.textContent = 'Updating…'
         return
       }
-      btn.textContent = result?.build ? 'Up to date' : 'Unavailable'
+      btn.textContent = result?.build ? 'OK' : 'N/A'
     } catch {
-      btn.textContent = 'Failed'
+      btn.textContent = 'Fail'
     }
     setTimeout(() => {
       btn.disabled = false
-      btn.textContent = 'Check update'
+      btn.textContent = 'Update'
     }, 1600)
   })
 }

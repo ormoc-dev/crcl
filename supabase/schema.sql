@@ -5,6 +5,7 @@
 --   2. schedule.sql
 --   3. practice-docs.sql
 --   4. push-subscriptions.sql   (closed-app notifications)
+--   5. app-settings.sql         (app PIN + Manage Choir password)
 --
 -- Then deploy Edge Function: supabase/functions/send-choir-push
 -- See supabase/functions/send-choir-push/README.md

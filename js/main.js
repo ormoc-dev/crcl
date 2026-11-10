@@ -9,8 +9,12 @@ import { hasSupabaseConfig, startAutoSync } from './lib/lyrics-sync.js'
 import { registerServiceWorker } from './lib/register-sw.js'
 import { startNotifyService } from './lib/notify-service.js'
 import { lockScrollBounce } from './lib/scroll-lock.js'
+import { ensurePinGate } from './components/pin-gate.js'
 
 async function boot() {
+  // Block the whole app until the 4-digit PIN is correct (saved locally after unlock)
+  await ensurePinGate()
+
   const header = document.querySelector('[data-component="header"]')
   const bottomBar = document.querySelector('[data-component="bottom-bar"]')
   const pageContent = document.getElementById('page-content')

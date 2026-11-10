@@ -267,18 +267,37 @@ textarea {
   stroke-width: 2;
 }
 
+.schedule-page .page-head-compact {
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.45rem;
+}
+
+.schedule-page .page-head-compact h1 {
+  font-size: 1.15rem;
+}
+
+.schedule-page .page-head-compact p {
+  font-size: 0.82rem;
+}
+
+.schedule-page .page-head-compact::after {
+  margin-top: 0.3rem;
+  letter-spacing: 0.28em;
+  font-size: 0.55rem;
+}
+
 .schedule-section {
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
 }
 
 .schedule-section + .schedule-section {
-  margin-top: 1.25rem;
+  margin-top: 0.85rem;
 }
 
 .schedule-section-title {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.3rem;
   font-family: var(--font-brand);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -316,17 +335,14 @@ textarea {
 
 .schedule-list {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.4rem;
   border-top: none;
 }
 
 .schedule-card {
-  border: 1px solid rgba(201, 166, 107, 0.6);
-  border-radius: 10px;
-  background:
-    radial-gradient(ellipse at 8% 0%, rgba(255, 255, 255, 0.35), transparent 40%),
-    linear-gradient(180deg, #f8edd6 0%, #efe0c0 100%);
-  box-shadow: 0 4px 12px rgba(42, 27, 17, 0.08);
+  border: 1px solid rgba(201, 166, 107, 0.55);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f8edd6 0%, #efe0c0 100%);
   overflow: hidden;
 }
 
@@ -338,10 +354,10 @@ textarea {
   appearance: none;
   width: 100%;
   display: grid;
-  grid-template-columns: 4.6rem 1fr auto;
-  gap: 0.7rem;
-  align-items: start;
-  padding: 0.85rem 0.85rem 0.9rem;
+  grid-template-columns: 2.6rem 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.65rem;
   border: none;
   background: transparent;
   color: inherit;
@@ -360,87 +376,86 @@ textarea {
 }
 
 .schedule-card-day {
+  width: 2.6rem;
+  min-height: 2.35rem;
   display: grid;
-  gap: 0.15rem;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 166, 107, 0.7);
+  background: rgba(255, 248, 240, 0.7);
   font-family: var(--font-brand);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--gold);
-  padding-top: 0.2rem;
-}
-
-.schedule-card-day small {
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: var(--muted);
-  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .schedule-card-copy {
   min-width: 0;
   display: grid;
-  gap: 0.12rem;
-}
-
-.schedule-card-kind {
-  margin: 0 !important;
-  font-family: var(--font-brand);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted) !important;
+  gap: 0.08rem;
 }
 
 .schedule-card-copy h2 {
   margin: 0;
   font-family: var(--font-brand);
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--brown-dark);
-  letter-spacing: 0.02em;
-  line-height: 1.25;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.schedule-card-time {
+.schedule-card-meta {
   margin: 0 !important;
-  color: var(--ink) !important;
-  font-size: 0.95rem;
-  font-weight: 700;
+  color: var(--muted) !important;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-card-note {
-  margin: 0.15rem 0 0 !important;
+  margin: 0.15rem 0 0.25rem !important;
   color: var(--muted) !important;
-  font-size: 0.86rem;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .schedule-card-aside {
-  display: grid;
-  justify-items: end;
-  gap: 0.45rem;
-  padding-top: 0.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .schedule-card-files {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.45rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 999px;
+  display: inline-grid;
+  justify-items: center;
+  gap: 0.02rem;
+  min-width: 2.1rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
   border: 1px solid rgba(210, 180, 140, 0.8);
   background: rgba(255, 248, 240, 0.55);
   color: var(--muted);
   font-family: var(--font-brand);
-  font-size: 0.62rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1;
+}
+
+.schedule-card-files small {
+  font-size: 0.52rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  white-space: nowrap;
+  font-weight: 700;
 }
 
 .schedule-card-files.is-ready {
@@ -450,24 +465,23 @@ textarea {
 }
 
 .schedule-card-chevron {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.45rem;
+  height: 0.45rem;
   border-right: 2px solid var(--brown);
   border-bottom: 2px solid var(--brown);
   transform: rotate(45deg);
   transition: transform 0.18s ease;
-  margin-right: 0.2rem;
+  flex-shrink: 0;
 }
 
 .schedule-card.is-open .schedule-card-chevron {
   transform: rotate(225deg);
-  margin-top: 0.2rem;
 }
 
 .schedule-card-docs {
   display: grid;
-  gap: 0.4rem;
-  padding: 0 0.75rem 0.85rem;
+  gap: 0.35rem;
+  padding: 0 0.65rem 0.65rem;
   border-top: 1px dashed rgba(201, 166, 107, 0.65);
   background: rgba(255, 248, 240, 0.35);
 }
@@ -477,9 +491,9 @@ textarea {
 }
 
 .schedule-card-docs-head {
-  margin-top: 0.55rem;
+  margin-top: 0.45rem;
   font-family: var(--font-brand);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -488,9 +502,9 @@ textarea {
 
 .schedule-card-docs-empty {
   margin: 0;
-  padding: 0.35rem 0 0.15rem;
+  padding: 0.2rem 0 0.1rem;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.8rem;
 }
 
 .schedule-doc-link {
@@ -1027,38 +1041,62 @@ textarea {
   flex-shrink: 0;
 }
 
+.settings-page .page-head-compact {
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.45rem;
+}
+
+.settings-page .page-head-compact h1 {
+  font-size: 1.15rem;
+}
+
+.settings-page .page-head-compact p {
+  font-size: 0.82rem;
+}
+
+.settings-page .page-head-compact::after {
+  margin-top: 0.3rem;
+  letter-spacing: 0.28em;
+  font-size: 0.55rem;
+}
+
 .settings-help {
-  padding: 0.85rem 0 1rem;
+  padding: 0.55rem 0 0.65rem;
   border-bottom: 1px solid var(--line);
 }
 
 .settings-help strong {
   display: block;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.3rem;
   color: var(--brown-dark);
   font-family: var(--font-brand);
+  font-size: 0.88rem;
 }
 
 .settings-help p,
 .settings-help ol {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.45rem;
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .settings-help ol {
-  padding-left: 1.15rem;
+  padding-left: 1.05rem;
 }
 
 .settings-help li {
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.18rem;
+}
+
+.settings-help .btn-block {
+  margin-top: 0.15rem;
 }
 
 .settings-help-note {
-  margin-top: 0.65rem !important;
+  margin-top: 0.4rem !important;
   margin-bottom: 0 !important;
-  font-size: 0.8rem !important;
+  font-size: 0.74rem !important;
 }
 
 .page-head {
@@ -1399,35 +1437,44 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.95rem 0;
+  gap: 0.65rem;
+  padding: 0.62rem 0;
   border-bottom: 1px dashed var(--line);
   background: transparent;
 }
 
 .settings-row strong {
   display: block;
-  margin-bottom: 0.15rem;
+  margin-bottom: 0.08rem;
   color: var(--brown-dark);
   font-family: var(--font-brand);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .settings-row span {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.settings-row .btn-sm {
+  flex-shrink: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
 }
 
 .settings-link:active {
   background: var(--brown-soft);
-  margin-inline: -1rem;
-  padding-inline: 1rem;
+  margin-inline: -0.75rem;
+  padding-inline: 0.75rem;
 }
 
 .settings-chevron {
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   color: var(--brown);
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -1973,11 +2020,22 @@ body:has(#app.is-lyric-view) .app-toast-host {
   background: #111;
 }
 
-.doc-viewer-frame {
-  width: 100%;
+.doc-viewer-pdf {
   height: 100%;
-  border: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: #2a2a2a;
+  padding: 0.5rem 0.35rem 1.25rem;
+}
+
+.doc-viewer-page {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 0.45rem;
   background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
 .doc-viewer-status,
@@ -2015,6 +2073,104 @@ body:has(#app.is-lyric-view) .app-toast-host {
   justify-self: center;
   color: rgba(247, 237, 216, 0.8);
   line-height: 1.45;
+}
+
+#app[hidden] {
+  display: none !important;
+}
+
+.pin-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at top, rgba(242, 228, 201, 0.14), transparent 50%),
+    linear-gradient(180deg, #4a3220 0%, #2a1b11 100%);
+}
+
+.pin-field {
+  position: relative;
+  width: min(100%, 14rem);
+  min-height: 3rem;
+  display: grid;
+  place-items: center;
+}
+
+.pin-gate-eyebrow {
+  margin: 0 !important;
+  font-family: var(--font-brand);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c9a66b !important;
+}
+
+.pin-gate h1 {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-size: 1.55rem;
+  color: #f7edd8;
+}
+
+.pin-gate-copy {
+  margin: 0 0 0.85rem !important;
+  color: rgba(247, 237, 216, 0.78) !important;
+  font-size: 0.88rem;
+}
+
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0;
+  pointer-events: none;
+}
+
+.pin-dot {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 1.5px solid #c9a66b;
+  background: transparent;
+}
+
+.pin-dot.is-filled {
+  background: #f7edd8;
+  border-color: #f7edd8;
+}
+
+.pin-error {
+  margin: 0 0 0.35rem !important;
+  min-height: 1.1rem;
+  color: #f0b4a4 !important;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pin-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.02;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 1.25rem;
+  letter-spacing: 0.6em;
+  text-align: center;
+  -webkit-text-security: disc;
 }
 
 @media (max-width: 640px) {

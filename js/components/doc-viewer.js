@@ -6,6 +6,7 @@ import { formatDocSize } from '../lib/practice-docs.js'
 
 let host = null
 let objectUrl = ''
+let pdfjsPromise = null
 
 function revokeObjectUrl() {
   if (objectUrl) {
@@ -46,6 +47,74 @@ function setBusy(message) {
   body.appendChild(status)
 }
 
+function ensurePromiseWithResolvers() {
+  if (typeof Promise.withResolvers === 'function') return
+  Promise.withResolvers = function withResolvers() {
+    let resolve
+    let reject
+    const promise = new Promise((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    return { promise, resolve, reject }
+  }
+}
+
+async function loadPdfJs() {
+  if (!pdfjsPromise) {
+    ensurePromiseWithResolvers()
+    pdfjsPromise = import('../vendor/pdfjs/pdf.min.mjs').then((mod) => {
+      const pdfjsLib = mod?.getDocument ? mod : globalThis.pdfjsLib
+      if (!pdfjsLib?.getDocument) {
+        throw new Error('PDF viewer failed to load.')
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        '../vendor/pdfjs/pdf.worker.min.mjs',
+        import.meta.url,
+      ).toString()
+      return pdfjsLib
+    })
+  }
+  return pdfjsPromise
+}
+
+function pdfBlob(blob, name = '') {
+  if (blob?.type === 'application/pdf') return blob
+  return new Blob([blob], { type: 'application/pdf' })
+}
+
+/** Render PDF pages with PDF.js — works on iOS where iframe/blob PDF fails. */
+async function renderPdfPages(body, blob) {
+  const pdfjsLib = await loadPdfJs()
+  const data = new Uint8Array(await blob.arrayBuffer())
+  const pdf = await pdfjsLib.getDocument({ data }).promise
+
+  const scroller = document.createElement('div')
+  scroller.className = 'doc-viewer-pdf'
+  body.replaceChildren(scroller)
+
+  const maxWidth = Math.max(280, Math.floor(scroller.clientWidth || body.clientWidth || window.innerWidth))
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+    const page = await pdf.getPage(pageNum)
+    const unscaled = page.getViewport({ scale: 1 })
+    const scale = Math.min(2.5, maxWidth / unscaled.width)
+    const viewport = page.getViewport({ scale })
+
+    const canvas = document.createElement('canvas')
+    canvas.className = 'doc-viewer-page'
+    canvas.width = Math.floor(viewport.width)
+    canvas.height = Math.floor(viewport.height)
+    canvas.style.width = '100%'
+    canvas.style.height = 'auto'
+
+    const context = canvas.getContext('2d', { alpha: false })
+    scroller.appendChild(canvas)
+
+    await page.render({ canvasContext: context, viewport }).promise
+  }
+}
+
 export function closeDocViewer() {
   revokeObjectUrl()
   if (!host) return
@@ -75,24 +144,25 @@ export async function openDocViewer(doc) {
 
   try {
     const cached = await ensurePracticeDocCached(doc)
-    objectUrl = URL.createObjectURL(cached.blob)
+    const typed =
+      isPdfDoc(cached) || isPdfDoc(doc)
+        ? pdfBlob(cached.blob, cached.name)
+        : cached.blob
+    objectUrl = URL.createObjectURL(typed)
 
     if (metaEl) {
       metaEl.textContent = `${formatDocSize(cached.size || cached.blob.size)} · saved offline`
     }
 
     if (!body) return
-    body.replaceChildren()
 
     if (isPdfDoc(cached) || isPdfDoc(doc)) {
-      const frame = document.createElement('iframe')
-      frame.className = 'doc-viewer-frame'
-      frame.title = cached.name || 'PDF'
-      frame.src = `${objectUrl}#toolbar=1&navpanes=0`
-      body.appendChild(frame)
+      setBusy('Opening PDF…')
+      await renderPdfPages(body, typed)
       return
     }
 
+    body.replaceChildren()
     const fallback = document.createElement('div')
     fallback.className = 'doc-viewer-fallback'
 
