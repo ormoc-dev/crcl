@@ -353,15 +353,39 @@ export async function renderSchedule() {
   `
 }
 
+function getOpenScheduleIds(root) {
+  return Array.from(root.querySelectorAll('.schedule-card.is-open'))
+    .map((card) => card.dataset.scheduleId || '')
+    .filter(Boolean)
+}
+
+function restoreOpenScheduleCards(root, openIds = []) {
+  for (const id of openIds) {
+    const card = root.querySelector(
+      `.schedule-card[data-schedule-id="${CSS.escape(id)}"]`,
+    )
+    if (!card) continue
+    const toggle = card.querySelector('.schedule-card-main')
+    const panel = card.querySelector('.schedule-card-docs')
+    card.classList.add('is-open')
+    if (toggle) toggle.setAttribute('aria-expanded', 'true')
+    if (panel) panel.hidden = false
+  }
+}
+
 /** Update schedule after background sync without remounting the page. */
 export async function refreshScheduleQuietly(root = document.getElementById('page-content')) {
   if (!root) return false
   const body = root.querySelector('.schedule-page-body')
   if (!body) return false
 
+  // Keep expanded cards open across background sync refreshes
+  const openIds = getOpenScheduleIds(root)
+
   await ensureScheduleReady()
   const all = await getAllSchedule()
   body.innerHTML = scheduleBodyHtml(all)
   bindSchedule(root)
+  restoreOpenScheduleCards(root, openIds)
   return true
 }
