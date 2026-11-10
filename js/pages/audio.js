@@ -105,26 +105,18 @@ function pageHtml({ category = '', items = [], notice = '' } = {}) {
           }
         </p>
         <div class="audio-toolbar-actions">
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            id="audio-upload-btn"
-            ${canRecord ? '' : 'disabled'}
-          >Upload</button>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            id="audio-record-btn"
-            ${canRecord ? '' : 'disabled'}
-          >Record</button>
-          <input
-            type="file"
-            id="audio-upload-input"
-            accept="${AUDIO_ACCEPT}"
-            multiple
-            hidden
-          />
+          <button type="button" class="btn btn-ghost btn-sm" id="audio-upload-btn">Upload</button>
+          <button type="button" class="btn btn-primary btn-sm" id="audio-record-btn">Record</button>
         </div>
+        <input
+          type="file"
+          id="audio-upload-input"
+          class="audio-upload-input"
+          accept="${AUDIO_ACCEPT}"
+          multiple
+          tabindex="-1"
+          aria-hidden="true"
+        />
       </div>
 
       ${notice ? `<p class="sync-notice audio-notice">${escapeHtml(notice)}</p>` : ''}
@@ -412,12 +404,6 @@ export function bindAudio(root = document.getElementById('page-content')) {
         : 'Select a category to continue'
     }
 
-    const canUse = isValidAudioCategory(selectedCategory)
-    const btn = recordBtn()
-    if (btn) btn.disabled = !canUse
-    const upBtn = uploadBtn()
-    if (upBtn) upBtn.disabled = !canUse
-
     const host = panel()
     if (host) host.innerHTML = listHtml(items, selectedCategory)
 
@@ -451,7 +437,7 @@ export function bindAudio(root = document.getElementById('page-content')) {
 
   recordBtn()?.addEventListener('click', () => {
     if (!isValidAudioCategory(selectedCategory)) {
-      alert('Select a voice part first before recording.')
+      alert('Select a voice part first (Soprano, Alto, Tenor, Bass, or Mixed), then Record.')
       return
     }
     openSheet()
@@ -459,10 +445,13 @@ export function bindAudio(root = document.getElementById('page-content')) {
 
   uploadBtn()?.addEventListener('click', () => {
     if (!isValidAudioCategory(selectedCategory)) {
-      alert('Select a voice part first before uploading.')
+      alert('Select a voice part first (Soprano, Alto, Tenor, Bass, or Mixed), then Upload.')
       return
     }
-    uploadInput()?.click()
+    const input = uploadInput()
+    if (!input) return
+    input.value = ''
+    input.click()
   })
 
   uploadInput()?.addEventListener('change', async (event) => {
@@ -519,7 +508,7 @@ export function bindAudio(root = document.getElementById('page-content')) {
     }
 
     if (upBtn) {
-      upBtn.disabled = !isValidAudioCategory(selectedCategory)
+      upBtn.disabled = false
       upBtn.textContent = 'Upload'
     }
 
