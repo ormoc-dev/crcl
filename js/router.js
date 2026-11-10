@@ -1,5 +1,6 @@
 import { renderHome, bindHome, refreshHomeQuietly } from './pages/home.js'
 import { renderSchedule, bindSchedule, refreshScheduleQuietly } from './pages/schedule.js'
+import { renderAudio, bindAudio } from './pages/audio.js'
 import { closeDocViewer } from './components/doc-viewer.js'
 import { renderSettings, bindSettings } from './pages/settings.js'
 import { renderStore, bindStore } from './pages/store.js'
@@ -14,6 +15,7 @@ export function getPath() {
 
 async function resolvePage(path) {
   if (path === '/schedule') return await renderSchedule()
+  if (path === '/audio') return await renderAudio()
   if (path === '/settings') return await renderSettings()
   if (path === '/store') return renderStore()
   if (path === '/privacy') return renderPrivacy()
@@ -47,6 +49,7 @@ export async function renderRoute() {
 
   if (path === '/' || path === '') bindHome()
   if (path === '/schedule') bindSchedule(mount)
+  if (path === '/audio') bindAudio(mount)
   if (path === '/settings') bindSettings(mount)
   if (path === '/store') bindStore(mount)
   if (isLyricView) bindLyric(mount)

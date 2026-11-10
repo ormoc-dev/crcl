@@ -6,6 +6,7 @@
 --   3. practice-docs.sql
 --   4. push-subscriptions.sql   (closed-app notifications)
 --   5. app-settings.sql         (app PIN + Manage Choir password)
+--   6. audio-recordings.sql     (voice-part audio: soprano/alto/tenor/bass)
 --
 -- Then deploy Edge Function: supabase/functions/send-choir-push
 -- See supabase/functions/send-choir-push/README.md

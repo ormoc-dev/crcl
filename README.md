@@ -34,7 +34,7 @@ Creates `dist/` with env synced + stamped cache busting.
 5. Redeploy
 
 Also run these once in the Supabase SQL editor (in order):
-`supabase/lyrics.sql`, `supabase/schedule.sql`, `supabase/practice-docs.sql`, `supabase/push-subscriptions.sql`, `supabase/app-settings.sql`.
+`supabase/lyrics.sql`, `supabase/schedule.sql`, `supabase/practice-docs.sql`, `supabase/push-subscriptions.sql`, `supabase/app-settings.sql`, `supabase/audio-recordings.sql`.
 
 Default security values in `app_settings`:
 - `app_pin` = `2026` (4-digit app unlock)

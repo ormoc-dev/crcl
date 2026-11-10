@@ -1,9 +1,11 @@
 const DB_NAME = 'crcl-lyrics'
-const DB_VERSION = 4
+const DB_VERSION = 5
 const STORE = 'lyrics'
 const QUEUE = 'sync_queue'
 export const SCHEDULE_STORE = 'schedule'
 export const PRACTICE_DOC_BLOBS = 'practice_doc_blobs'
+export const AUDIO_STORE = 'audio_recordings'
+export const AUDIO_BLOBS = 'audio_blobs'
 
 const BUILTIN_SAMPLE_IDS = new Set(['sample-1', 'sample-2'])
 const BUILTIN_SAMPLE_TITLES = new Set(['amazing grace', 'how great thou art'])
@@ -33,6 +35,16 @@ export function openDb() {
 
       if (!db.objectStoreNames.contains(PRACTICE_DOC_BLOBS)) {
         db.createObjectStore(PRACTICE_DOC_BLOBS, { keyPath: 'path' })
+      }
+
+      if (!db.objectStoreNames.contains(AUDIO_STORE)) {
+        const audio = db.createObjectStore(AUDIO_STORE, { keyPath: 'id' })
+        audio.createIndex('category', 'category', { unique: false })
+        audio.createIndex('updated_at', 'updated_at', { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(AUDIO_BLOBS)) {
+        db.createObjectStore(AUDIO_BLOBS, { keyPath: 'path' })
       }
     }
 

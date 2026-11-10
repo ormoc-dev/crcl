@@ -16,6 +16,7 @@ import {
   parseSongs,
 } from './schedule-store.js'
 import { parseDocuments } from './practice-docs.js'
+import { pullAudioRecordings } from './audio-recordings.js'
 import { detectAndNotifySyncChanges } from './notify-service.js'
 
 let syncing = false
@@ -222,6 +223,12 @@ async function pullRemote() {
     })
   } catch (error) {
     console.warn('Notify check failed:', error)
+  }
+
+  try {
+    await pullAudioRecordings()
+  } catch (error) {
+    console.warn('Audio sync failed:', error)
   }
 
   return { pulled: lyricRows.length }

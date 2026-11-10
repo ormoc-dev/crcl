@@ -7,7 +7,7 @@ export function renderBottomBar(el) {
       </svg>
       <span>Home</span>
     </a>
-    <a href="#/schedule" data-nav="schedule" class="bottom-bar-center">
+    <a href="#/schedule" data-nav="schedule">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="5" width="18" height="16" rx="2" />
         <path d="M3 10h18" />
@@ -15,6 +15,14 @@ export function renderBottomBar(el) {
         <path d="M8 14h3M13 14h3M8 17h3M13 17h3" />
       </svg>
       <span>Schedule</span>
+    </a>
+    <a href="#/audio" data-nav="audio">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="18" cy="16" r="3" />
+      </svg>
+      <span>Audio</span>
     </a>
     <a href="#/settings" data-nav="settings">
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -29,9 +37,11 @@ export function renderBottomBar(el) {
 export function setActiveNav(path) {
   const active = path.startsWith('/schedule')
     ? 'schedule'
-    : path.startsWith('/settings') || path.startsWith('/store') || path.startsWith('/privacy')
-      ? 'settings'
-      : 'home'
+    : path.startsWith('/audio')
+      ? 'audio'
+      : path.startsWith('/settings') || path.startsWith('/store') || path.startsWith('/privacy')
+        ? 'settings'
+        : 'home'
 
   document.querySelectorAll('.bottom-bar a').forEach((link) => {
     link.classList.toggle('is-active', link.dataset.nav === active)
