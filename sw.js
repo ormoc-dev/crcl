@@ -71,6 +71,54 @@ self.addEventListener('message', (event) => {
   }
 })
 
+/** Closed-app Web Push from Supabase Edge Function `send-choir-push`. */
+self.addEventListener('push', (event) => {
+  let payload = {}
+  try {
+    payload = event.data ? event.data.json() : {}
+  } catch {
+    try {
+      payload = { body: event.data?.text?.() || '' }
+    } catch {
+      payload = {}
+    }
+  }
+
+  const title = String(payload.title || 'Christus Rex Choir')
+  const icon = new URL('public/assets/icon/icon-192.png', self.registration.scope).href
+  const data = {
+    url: payload.url || '#/',
+    kind: payload.kind || 'generic',
+    ...(payload.data || {}),
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: String(payload.body || '').slice(0, 180),
+      icon,
+      badge: icon,
+      tag: payload.tag || data.kind || 'crc',
+      renotify: true,
+      data,
+      vibrate: [120],
+    }),
+  )
+})
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      for (const client of all) {
+        client.postMessage({ type: 'crc-push-resubscribe' })
+      }
+    })(),
+  )
+})
+
 self.addEventListener('notificationclick', (event) => {
   const data = event.notification?.data || {}
   event.notification.close()

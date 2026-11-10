@@ -9,4 +9,5 @@
 export const config = {
   supabaseUrl: "https://rkwkcomckbhyjleyradq.supabase.co",
   supabaseAnonKey: "sb_publishable_2_SJ74tNBZrfkTtaIuKvyw_6oy7Np6o",
+  vapidPublicKey: "BC9e9AykcOgrXBKrybD__UNm1HOEaB1n_aYynhOc6Sm7721N9tx3ERIpI_vpouO-k9a2Ql4Af_cPc_Xk6c7jO1U",
 }

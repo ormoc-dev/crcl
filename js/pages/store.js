@@ -32,6 +32,7 @@ import {
   putCachedPracticeDoc,
   removeCachedPracticeDocs,
 } from '../lib/practice-doc-cache.js'
+import { dispatchChoirPush } from '../lib/push-service.js'
 
 function escapeHtml(value) {
   return String(value)
@@ -707,6 +708,7 @@ export function bindStore(root) {
       const data = new FormData(form)
       const kind = form.dataset.kind
       setDocsError('')
+      let pushNotice = null
 
       if (kind === 'schedule') {
         const type = form.dataset.type === 'practice' ? 'practice' : 'service'
@@ -714,6 +716,9 @@ export function bindStore(root) {
         const scheduleId =
           existingId ||
           (crypto.randomUUID ? crypto.randomUUID() : `sched-${Date.now()}`)
+        const title = String(data.get('title') || '').trim()
+        const day = String(data.get('day') || '').trim()
+        const time = String(data.get('time') || '').trim()
 
         let documents = []
         let songs = []
@@ -779,9 +784,9 @@ export function bindStore(root) {
         await saveScheduleItem({
           id: scheduleId,
           type,
-          day: String(data.get('day') || '').trim(),
-          title: String(data.get('title') || '').trim(),
-          time: String(data.get('time') || '').trim(),
+          day,
+          title,
+          time,
           note: String(data.get('note') || '').trim(),
           documents,
           songs,
@@ -791,17 +796,40 @@ export function bindStore(root) {
           await deletePracticeDocPaths(removedPaths)
           await removeCachedPracticeDocs(removedPaths)
         }
+
+        const kindLabel = type === 'practice' ? 'Practice' : 'Service'
+        pushNotice = {
+          kind: 'schedule',
+          title: `Choir ${kindLabel} update`,
+          body: [day, title, time].filter(Boolean).join(' · ') || 'Schedule was updated',
+          url: '#/schedule',
+          tag: `crc-schedule-${scheduleId}`,
+        }
       } else {
-        await saveLyric({
+        const title = String(data.get('title') || '').trim()
+        const saved = await saveLyric({
           id: String(data.get('id') || '') || undefined,
-          title: String(data.get('title') || '').trim(),
+          title,
           artist: String(data.get('artist') || '').trim(),
           key: String(data.get('key') || '').trim(),
           body: String(data.get('body') || '').trim(),
         })
+
+        pushNotice = {
+          kind: 'lyric',
+          title: 'New choir lyric',
+          body: title || 'A new song was added',
+          url: saved?.id ? `#/lyrics/${encodeURIComponent(saved.id)}` : '#/',
+          tag: saved?.id ? `crc-lyric-${saved.id}` : 'crc-lyrics',
+        }
       }
 
       await syncLyrics()
+
+      if (navigator.onLine && pushNotice) {
+        dispatchChoirPush(pushNotice).catch(() => {})
+      }
+
       await remount(root, {
         tab: currentTab,
         mode: 'list',

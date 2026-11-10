@@ -13,9 +13,11 @@ function notifyStatusLabel() {
   if (!notificationsSupported()) return 'Not supported on this device'
   const perm = notificationPermission()
   if (perm === 'denied') return 'Blocked in browser settings'
-  if (perm === 'granted' && notificationsEnabled()) return 'On — new lyrics & schedule'
+  if (perm === 'granted' && notificationsEnabled()) {
+    return 'On — alerts even when app is closed'
+  }
   if (perm === 'granted') return 'Allowed — currently off'
-  return 'Off — tap Enable'
+  return 'Off — tap Enable (install app on iPhone first)'
 }
 
 export async function renderSettings() {
@@ -113,7 +115,13 @@ export function bindSettings(root) {
 
     if (perm === 'granted') {
       notifyBtn.textContent = 'Turn off'
-      if (notifyLabel) notifyLabel.textContent = notifyStatusLabel()
+      if (notifyLabel) {
+        notifyLabel.textContent = 'On — registering this device…'
+      }
+      // Label settles after push subscribe finishes inside enableNotifications
+      window.setTimeout(() => {
+        if (notifyLabel) notifyLabel.textContent = notifyStatusLabel()
+      }, 800)
       return
     }
 

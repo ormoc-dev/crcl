@@ -37,6 +37,7 @@ const get = (key, fallback = '') =>
 
 const supabaseUrl = get('VITE_SUPABASE_URL') || get('SUPABASE_URL')
 const supabaseAnonKey = get('VITE_SUPABASE_ANON_KEY') || get('SUPABASE_ANON_KEY')
+const vapidPublicKey = get('VITE_VAPID_PUBLIC_KEY') || get('VAPID_PUBLIC_KEY')
 
 const missing = []
 if (!supabaseUrl || supabaseUrl.includes('YOUR_PROJECT') || supabaseUrl.includes('your-project')) {
@@ -68,6 +69,7 @@ const contents = `/**
 export const config = {
   supabaseUrl: ${esc(supabaseUrl)},
   supabaseAnonKey: ${esc(supabaseAnonKey)},
+  vapidPublicKey: ${esc(vapidPublicKey)},
 }
 `
 

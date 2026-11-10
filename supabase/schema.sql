@@ -4,5 +4,9 @@
 --   1. lyrics.sql
 --   2. schedule.sql
 --   3. practice-docs.sql
+--   4. push-subscriptions.sql   (closed-app notifications)
+--
+-- Then deploy Edge Function: supabase/functions/send-choir-push
+-- See supabase/functions/send-choir-push/README.md
 --
 -- Each file is standalone so you can re-run just one section when needed.

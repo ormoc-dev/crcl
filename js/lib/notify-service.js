@@ -44,7 +44,21 @@ export function setNotificationsEnabled(on) {
 
 export async function enableNotifications() {
   const perm = await ensureNotifyPermission()
-  if (perm === 'granted') setNotificationsEnabled(true)
+  if (perm === 'granted') {
+    setNotificationsEnabled(true)
+    try {
+      const { ensurePushSubscription } = await import('./push-service.js')
+      const push = await ensurePushSubscription()
+      if (!push.ok && push.reason === 'no-vapid') {
+        console.warn('Push VAPID public key missing — closed-app alerts need setup.')
+      }
+      if (!push.ok && push.reason === 'migration') {
+        console.warn('Run supabase/push-subscriptions.sql for closed-app alerts.')
+      }
+    } catch (err) {
+      console.warn('Push subscribe skipped:', err?.message || err)
+    }
+  }
   return perm
 }
 
@@ -71,6 +85,12 @@ function bindServiceWorkerActions() {
 
   navigator.serviceWorker.addEventListener('message', (event) => {
     const msg = event.data
+    if (msg?.type === 'crc-push-resubscribe') {
+      import('./push-service.js')
+        .then((mod) => mod.ensurePushSubscription())
+        .catch(() => {})
+      return
+    }
     if (msg?.type !== 'crc-notify-action') return
     goHash(msg.data?.url || '#/')
   })
@@ -78,6 +98,13 @@ function bindServiceWorkerActions() {
 
 export function startNotifyService() {
   bindServiceWorkerActions()
+
+  // Re-register closed-app push if permission already granted
+  if (notificationsEnabled() && notificationPermission() === 'granted') {
+    import('./push-service.js')
+      .then((mod) => mod.ensurePushSubscription())
+      .catch(() => {})
+  }
 
   // Soft in-app tip once: enable OS alerts for new lyrics / schedule
   window.setTimeout(() => {
@@ -90,7 +117,7 @@ export function startNotifyService() {
       localStorage.setItem('crc-notify-tip-seen', '1')
       showAppToast({
         title: 'Turn on alerts?',
-        body: 'Get notified when new lyrics or schedule are posted. Open Settings → Notifications.',
+        body: 'Get notified when new lyrics or schedule are posted — even if the app is closed. Open Settings → Notifications.',
         url: '#/settings',
         kind: 'info',
         durationMs: 7000,
