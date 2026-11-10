@@ -76,3 +76,42 @@ export async function getStorePassword() {
   const settings = await refreshAppSettings()
   return String(settings.store_password || DEFAULTS.store_password).trim()
 }
+
+/** Update the 4-digit app PIN in Supabase + local cache (Manage Choir only). */
+export async function updateAppPin(newPin) {
+  const value = String(newPin || '').trim()
+  if (!/^\d{4}$/.test(value)) {
+    throw new Error('PIN must be exactly 4 digits.')
+  }
+
+  if (config.supabaseUrl && config.supabaseAnonKey && navigator.onLine) {
+    const supabase = getSupabase()
+    if (!supabase) throw new Error('Supabase is not ready.')
+
+    const { error } = await supabase.from('app_settings').upsert(
+      {
+        key: 'app_pin',
+        value,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' },
+    )
+
+    if (error) {
+      throw new Error(error.message || 'Could not save PIN to cloud.')
+    }
+  } else if (!navigator.onLine) {
+    throw new Error('Go online to save the new PIN for all devices.')
+  }
+
+  const cached = readCache()
+  writeCache({ ...cached, app_pin: value })
+
+  try {
+    localStorage.setItem('crc-app-pin-local', value)
+  } catch {
+    /* ignore */
+  }
+
+  return value
+}

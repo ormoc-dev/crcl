@@ -17,6 +17,7 @@ import {
 } from '../lib/schedule-store.js'
 import { isStoreUnlocked, unlockStore, lockStore } from '../lib/store-auth.js'
 import { hasSupabaseConfig, syncLyrics } from '../lib/lyrics-sync.js'
+import { getAppPin, updateAppPin } from '../lib/app-settings.js'
 import { confirmModal } from '../components/confirm-modal.js'
 import {
   PRACTICE_DOC_ACCEPT,
@@ -50,41 +51,104 @@ function syncHint() {
 
 function lockScreen(error = '') {
   return `
-    <section class="page store-page">
-      <div class="store-top">
+    <section class="page store-page store-page-lock">
+      <div class="store-lock-stage">
+        <div class="store-lock-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+        </div>
         <h1>Manage Choir</h1>
-        <p>Password required to edit lyrics, choir service, and practice.</p>
-      </div>
+        <p class="store-lock-lead">Password required to edit lyrics, service &amp; practice.</p>
 
-      <div class="store-help">
-        <p>
-          For access, contact the developer, or ask
-          <strong>Djen</strong> / <strong>April</strong>.
+        <form class="store-lock" id="store-lock-form">
+          <label class="visually-hidden" for="store-password">Password</label>
+          <input
+            id="store-password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Enter password"
+            required
+          />
+          ${error ? `<p class="form-error">${escapeHtml(error)}</p>` : ''}
+          <button type="submit" class="btn btn-primary btn-block">Unlock</button>
+        </form>
+
+        <p class="store-help-note">
+          Need access? Ask <strong>Djen</strong> or <strong>April</strong>.
         </p>
       </div>
-
-      <form class="store-lock" id="store-lock-form">
-        <input
-          id="store-password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Password"
-          required
-        />
-        ${error ? `<p class="form-error">${escapeHtml(error)}</p>` : ''}
-        <button type="submit" class="btn btn-primary btn-block">Unlock</button>
-      </form>
     </section>
   `
 }
 
 function tabsHtml(tab) {
+  const items = [
+    { id: 'lyrics', label: 'Lyrics' },
+    { id: 'service', label: 'Service' },
+    { id: 'practice', label: 'Practice' },
+    { id: 'settings', label: 'Settings' },
+  ]
+
   return `
     <div class="store-tabs" role="tablist" aria-label="Manage choir">
-      <button type="button" class="store-tab ${tab === 'lyrics' ? 'is-active' : ''}" data-tab="lyrics">Lyrics</button>
-      <button type="button" class="store-tab ${tab === 'service' ? 'is-active' : ''}" data-tab="service">Service</button>
-      <button type="button" class="store-tab ${tab === 'practice' ? 'is-active' : ''}" data-tab="practice">Practice</button>
+      ${items
+        .map(
+          (item) => `
+        <button
+          type="button"
+          class="store-tab ${tab === item.id ? 'is-active' : ''}"
+          data-tab="${item.id}"
+          role="tab"
+          aria-selected="${tab === item.id ? 'true' : 'false'}"
+        >${item.label}</button>`,
+        )
+        .join('')}
+    </div>
+  `
+}
+
+function pinSettingsHtml({ notice = '', currentPin = '' } = {}) {
+  return `
+    <div class="store-settings">
+      <div class="store-settings-block">
+        <h2>App PIN</h2>
+        <p>Change the 4-digit code used to open CRC on every device. Management only.</p>
+        <p class="store-settings-current">Current PIN · <strong>${escapeHtml(currentPin || '····')}</strong></p>
+        <form class="store-form store-pin-form" id="store-pin-form">
+          <label class="store-field-label" for="store-pin-new">New PIN</label>
+          <input
+            id="store-pin-new"
+            name="pin"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="4"
+            autocomplete="new-password"
+            placeholder="4 digits"
+            required
+          />
+          <label class="store-field-label" for="store-pin-confirm">Confirm PIN</label>
+          <input
+            id="store-pin-confirm"
+            name="confirm"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="4"
+            autocomplete="new-password"
+            placeholder="Repeat PIN"
+            required
+          />
+          <p class="form-error" id="store-pin-error" hidden></p>
+          ${notice ? `<p class="sync-notice">${escapeHtml(notice)}</p>` : ''}
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-block">Save PIN</button>
+          </div>
+        </form>
+      </div>
     </div>
   `
 }
@@ -336,59 +400,84 @@ async function unlockedScreen({
 } = {}) {
   await ensureScheduleReady()
   const pending = await getPendingSyncCount()
+  const safeTab = ['lyrics', 'service', 'practice', 'settings'].includes(tab)
+    ? tab
+    : 'lyrics'
   const addLabel =
-    tab === 'lyrics' ? 'Add song' : tab === 'practice' ? 'Add practice' : 'Add service'
+    safeTab === 'lyrics'
+      ? 'Add song'
+      : safeTab === 'practice'
+        ? 'Add practice'
+        : 'Add service'
 
   let body = ''
-  if (mode === 'form') {
-    if (tab === 'lyrics') {
+  if (safeTab === 'settings') {
+    let currentPin = ''
+    try {
+      currentPin = await getAppPin()
+    } catch {
+      currentPin = ''
+    }
+    body = pinSettingsHtml({ notice, currentPin })
+  } else if (mode === 'form') {
+    if (safeTab === 'lyrics') {
       const editing = editingId ? await getLyricById(editingId) : null
       body = lyricEditor(editing)
     } else {
       const editing = editingId ? await getScheduleItem(editingId) : null
-      body = await scheduleEditor(tab, editing)
+      body = await scheduleEditor(safeTab, editing)
     }
-  } else if (tab === 'lyrics') {
+  } else if (safeTab === 'lyrics') {
     const lyrics = (await getAllLyrics()).sort((a, b) => a.title.localeCompare(b.title))
     body = `
+      <div class="store-toolbar">
+        <p class="store-toolbar-copy">${lyrics.length} song${lyrics.length === 1 ? '' : 's'}</p>
+        <button type="button" class="btn btn-primary btn-sm" id="store-add">${addLabel}</button>
+      </div>
       <div class="store-song-list">
         ${
           lyrics.map(songRow).join('') ||
-          `<div class="store-empty">No songs yet.<br />Tap Add to save one.</div>`
+          `<div class="store-empty">No songs yet.<br />Tap Add song to save one.</div>`
         }
       </div>
     `
   } else {
-    const items = await getScheduleByType(tab)
+    const items = await getScheduleByType(safeTab)
     body = `
+      <div class="store-toolbar">
+        <p class="store-toolbar-copy">${items.length} ${safeTab} item${items.length === 1 ? '' : 's'}</p>
+        <button type="button" class="btn btn-primary btn-sm" id="store-add">${addLabel}</button>
+      </div>
       <div class="store-song-list">
         ${
           items.map(scheduleRow).join('') ||
-          `<div class="store-empty">No ${tab} times yet.<br />Tap Add to create one.</div>`
+          `<div class="store-empty">No ${safeTab} times yet.<br />Tap ${addLabel} to create one.</div>`
         }
       </div>
     `
   }
 
+  const showListNotice = notice && safeTab !== 'settings'
+
   return `
-    <section class="page store-page" data-store-tab="${escapeHtml(tab)}">
-      <div class="store-top">
-        <div class="store-top-row">
+    <section class="page store-page" data-store-tab="${escapeHtml(safeTab)}">
+      <div class="store-hero">
+        <div class="store-hero-main">
+          <p class="store-eyebrow">Admin</p>
           <h1>Manage Choir</h1>
-          <div class="store-top-actions">
-            ${mode === 'list' ? `<button type="button" class="btn btn-primary btn-sm" id="store-add">${addLabel}</button>` : ''}
-            <button type="button" class="btn btn-ghost btn-sm" id="store-lock-btn">Lock</button>
-          </div>
+          <p class="store-hero-meta">
+            <span class="store-status">${escapeHtml(syncHint())}</span>
+            ${pending ? `<span class="sync-pending">${pending} pending</span>` : ''}
+          </p>
+          ${showListNotice ? `<p class="sync-notice store-hero-notice">${escapeHtml(notice)}</p>` : ''}
         </div>
-        <div class="store-meta">
-          <span class="store-status">${escapeHtml(syncHint())}</span>
-          ${pending ? `<span class="sync-pending">${pending} pending</span>` : ''}
-          ${notice ? `<span class="sync-notice">${escapeHtml(notice)}</span>` : ''}
-        </div>
+        <button type="button" class="btn btn-ghost btn-sm store-lock-btn" id="store-lock-btn">Lock</button>
       </div>
 
-      ${tabsHtml(tab)}
-      ${body}
+      ${tabsHtml(safeTab)}
+      <div class="store-panel">
+        ${body}
+      </div>
     </section>
   `
 }
@@ -443,12 +532,76 @@ export function bindStore(root) {
   })
 
   root.querySelector('#store-add')?.addEventListener('click', async () => {
+    if (currentTab === 'settings') return
     await remount(root, { tab: currentTab, mode: 'form' })
   })
 
   root.querySelector('#store-cancel')?.addEventListener('click', async () => {
     await remount(root, { tab: currentTab, mode: 'list' })
   })
+
+  const pinForm = root.querySelector('#store-pin-form')
+  if (pinForm) {
+    const pinError = root.querySelector('#store-pin-error')
+    const setPinError = (message) => {
+      if (!pinError) return
+      if (!message) {
+        pinError.hidden = true
+        pinError.textContent = ''
+        return
+      }
+      pinError.hidden = false
+      pinError.textContent = message
+    }
+
+    const digitize = (input) => {
+      input?.addEventListener('input', () => {
+        input.value = String(input.value || '')
+          .replace(/\D/g, '')
+          .slice(0, 4)
+      })
+    }
+    digitize(pinForm.querySelector('#store-pin-new'))
+    digitize(pinForm.querySelector('#store-pin-confirm'))
+
+    pinForm.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      setPinError('')
+      const data = new FormData(pinForm)
+      const pin = String(data.get('pin') || '').trim()
+      const confirm = String(data.get('confirm') || '').trim()
+      const submitBtn = pinForm.querySelector('button[type="submit"]')
+
+      if (!/^\d{4}$/.test(pin)) {
+        setPinError('Enter a 4-digit PIN.')
+        return
+      }
+      if (pin !== confirm) {
+        setPinError('PIN confirmation does not match.')
+        return
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true
+        submitBtn.textContent = 'Saving…'
+      }
+
+      try {
+        await updateAppPin(pin)
+        await remount(root, {
+          tab: 'settings',
+          mode: 'list',
+          notice: 'PIN updated for all devices.',
+        })
+      } catch (error) {
+        setPinError(error?.message || 'Could not save PIN.')
+        if (submitBtn) {
+          submitBtn.disabled = false
+          submitBtn.textContent = 'Save PIN'
+        }
+      }
+    })
+  }
 
   root.querySelectorAll('.store-song').forEach((row) => {
     const id = row.dataset.id
