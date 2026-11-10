@@ -117,10 +117,23 @@ function pageHtml({ category = '', items = [], notice = '' } = {}) {
       </div>
 
       <div class="audio-record-sheet" id="audio-record-sheet" hidden>
-        <div class="audio-record-card">
-          <p class="audio-record-eyebrow">Recording for</p>
-          <h2 id="audio-record-cat-label">${escapeHtml(canRecord ? categoryLabel(category) : '—')}</h2>
-          <p class="audio-record-timer" id="audio-record-timer">00:00</p>
+        <button type="button" class="audio-record-backdrop" id="audio-rec-backdrop" aria-label="Close recorder"></button>
+        <div class="audio-record-card" role="dialog" aria-modal="true" aria-labelledby="audio-record-cat-label">
+          <div class="audio-record-handle" aria-hidden="true"></div>
+          <div class="audio-record-head">
+            <div>
+              <p class="audio-record-eyebrow">Recording for</p>
+              <h2 id="audio-record-cat-label">${escapeHtml(canRecord ? categoryLabel(category) : '—')}</h2>
+            </div>
+            <button type="button" class="audio-record-close" id="audio-rec-cancel" aria-label="Close">✕</button>
+          </div>
+
+          <div class="audio-record-viz" id="audio-record-viz" data-state="idle">
+            <canvas id="audio-wave-canvas" class="audio-wave-canvas" width="640" height="120" aria-hidden="true"></canvas>
+            <p class="audio-record-timer" id="audio-record-timer">00:00</p>
+            <div class="audio-record-pulse" aria-hidden="true"></div>
+          </div>
+
           <p class="audio-record-hint" id="audio-record-hint">Tap Start, then Stop when finished.</p>
           <label class="store-field-label" for="audio-record-title">Title</label>
           <input id="audio-record-title" type="text" maxlength="80" placeholder="e.g. Panunuluyan — Tenor line" />
@@ -129,7 +142,6 @@ function pageHtml({ category = '', items = [], notice = '' } = {}) {
             <button type="button" class="btn btn-primary" id="audio-rec-start">Start</button>
             <button type="button" class="btn btn-ghost" id="audio-rec-stop" disabled>Stop</button>
             <button type="button" class="btn btn-primary" id="audio-rec-save" hidden>Save</button>
-            <button type="button" class="btn btn-ghost" id="audio-rec-cancel">Cancel</button>
           </div>
         </div>
       </div>
@@ -163,10 +175,15 @@ export function bindAudio(root = document.getElementById('page-content')) {
   let timerId = 0
   let startedAt = 0
   let activeObjectUrl = ''
+  let audioCtx = null
+  let analyser = null
+  let waveRaf = 0
 
   const panel = () => root.querySelector('#audio-panel')
   const recordBtn = () => root.querySelector('#audio-record-btn')
   const sheet = () => root.querySelector('#audio-record-sheet')
+  const vizEl = () => root.querySelector('#audio-record-viz')
+  const waveCanvas = () => root.querySelector('#audio-wave-canvas')
   const timerEl = () => root.querySelector('#audio-record-timer')
   const hintEl = () => root.querySelector('#audio-record-hint')
   const errorEl = () => root.querySelector('#audio-record-error')
@@ -175,6 +192,87 @@ export function bindAudio(root = document.getElementById('page-content')) {
   const startBtn = () => root.querySelector('#audio-rec-start')
   const stopBtn = () => root.querySelector('#audio-rec-stop')
   const saveBtn = () => root.querySelector('#audio-rec-save')
+
+  const setVizState = (state) => {
+    const el = vizEl()
+    if (el) el.dataset.state = state
+  }
+
+  const stopWave = () => {
+    if (waveRaf) cancelAnimationFrame(waveRaf)
+    waveRaf = 0
+    try {
+      audioCtx?.close?.()
+    } catch {
+      /* ignore */
+    }
+    audioCtx = null
+    analyser = null
+
+    const canvas = waveCanvas()
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // Idle soft bars
+    const bars = 28
+    const gap = 4
+    const barW = (canvas.width - gap * (bars - 1)) / bars
+    ctx.fillStyle = 'rgba(107, 68, 35, 0.22)'
+    for (let i = 0; i < bars; i += 1) {
+      const h = 12 + ((i * 7) % 18)
+      const x = i * (barW + gap)
+      const y = (canvas.height - h) / 2
+      ctx.fillRect(x, y, barW, h)
+    }
+  }
+
+  const drawWave = () => {
+    const canvas = waveCanvas()
+    if (!canvas || !analyser) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const buffer = new Uint8Array(analyser.frequencyBinCount)
+    analyser.getByteFrequencyData(buffer)
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const bars = 32
+    const gap = 3
+    const barW = (canvas.width - gap * (bars - 1)) / bars
+    const step = Math.floor(buffer.length / bars)
+
+    for (let i = 0; i < bars; i += 1) {
+      const value = buffer[i * step] || 0
+      const h = Math.max(8, (value / 255) * (canvas.height * 0.9))
+      const x = i * (barW + gap)
+      const y = (canvas.height - h) / 2
+      const grad = ctx.createLinearGradient(0, y, 0, y + h)
+      grad.addColorStop(0, '#c9a66b')
+      grad.addColorStop(1, '#6b4423')
+      ctx.fillStyle = grad
+      ctx.fillRect(x, y, barW, h)
+    }
+
+    waveRaf = requestAnimationFrame(drawWave)
+  }
+
+  const startWave = (stream) => {
+    stopWave()
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (!Ctx) return
+      audioCtx = new Ctx()
+      const source = audioCtx.createMediaStreamSource(stream)
+      analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.72
+      source.connect(analyser)
+      drawWave()
+    } catch (error) {
+      console.warn('Wave visualizer unavailable:', error)
+    }
+  }
 
   const setError = (message) => {
     const el = errorEl()
@@ -213,6 +311,8 @@ export function bindAudio(root = document.getElementById('page-content')) {
 
   const cleanupStream = () => {
     stopTimer()
+    stopWave()
+    setVizState('idle')
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       try {
         mediaRecorder.stop()
@@ -231,7 +331,13 @@ export function bindAudio(root = document.getElementById('page-content')) {
     recordedBlob = null
     recordedMime = ''
     const sh = sheet()
-    if (sh) sh.hidden = true
+    if (sh) {
+      sh.classList.remove('is-open')
+      window.setTimeout(() => {
+        if (sh.classList.contains('is-open')) return
+        sh.hidden = true
+      }, 220)
+    }
     setError('')
     const title = titleInput()
     if (title) title.value = ''
@@ -263,7 +369,10 @@ export function bindAudio(root = document.getElementById('page-content')) {
       titleInput().value = `${categoryLabel(selectedCategory)} recording`
     }
     setError('')
+    setVizState('idle')
+    stopWave()
     sh.hidden = false
+    requestAnimationFrame(() => sh.classList.add('is-open'))
   }
 
   const remountList = async (notice = '') => {
@@ -327,6 +436,7 @@ export function bindAudio(root = document.getElementById('page-content')) {
   })
 
   root.querySelector('#audio-rec-cancel')?.addEventListener('click', closeSheet)
+  root.querySelector('#audio-rec-backdrop')?.addEventListener('click', closeSheet)
 
   startBtn()?.addEventListener('click', async () => {
     setError('')
@@ -340,7 +450,13 @@ export function bindAudio(root = document.getElementById('page-content')) {
     }
 
     try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
       const mime = pickRecorderMime()
       recordedMime = mime
       chunks = []
@@ -359,6 +475,8 @@ export function bindAudio(root = document.getElementById('page-content')) {
           type: mediaRecorder?.mimeType || recordedMime || 'audio/webm',
         })
         recordedMime = recordedBlob.type || recordedMime
+        stopWave()
+        setVizState('ready')
         mediaStream?.getTracks?.().forEach((track) => track.stop())
         mediaStream = null
         const save = saveBtn()
@@ -374,6 +492,8 @@ export function bindAudio(root = document.getElementById('page-content')) {
       }
 
       mediaRecorder.start(250)
+      startWave(mediaStream)
+      setVizState('recording')
       startTimer()
       startBtn().disabled = true
       startBtn().textContent = 'Recording…'
