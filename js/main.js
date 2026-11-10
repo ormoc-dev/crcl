@@ -10,8 +10,11 @@ import { registerServiceWorker } from './lib/register-sw.js'
 import { startNotifyService } from './lib/notify-service.js'
 import { lockScrollBounce } from './lib/scroll-lock.js'
 import { ensurePinGate } from './components/pin-gate.js'
+import { applyFontScale } from './lib/font-scale.js'
 
 async function boot() {
+  applyFontScale()
+
   // Block the whole app until the 4-digit PIN is correct (saved locally after unlock)
   await ensurePinGate()
 

@@ -8,6 +8,11 @@ import {
   notificationsSupported,
   setNotificationsEnabled,
 } from '../lib/notify-service.js'
+import {
+  FONT_SCALE_OPTIONS,
+  getFontScale,
+  setFontScale,
+} from '../lib/font-scale.js'
 
 function notifyStatusLabel() {
   if (!notificationsSupported()) return 'Not supported'
@@ -21,10 +26,22 @@ function notifyStatusLabel() {
 export async function renderSettings() {
   const offline = !navigator.onLine
   const buildLabel = BUILD_ID === '__BUILD_ID__' ? 'local' : BUILD_ID
+  const currentScale = getFontScale()
   const notifyOn =
     notificationsSupported() &&
     notificationPermission() === 'granted' &&
     notificationsEnabled()
+
+  const fontButtons = FONT_SCALE_OPTIONS.map(
+    (opt) => `
+      <button
+        type="button"
+        class="settings-font-btn${opt.value === currentScale ? ' is-active' : ''}"
+        data-scale="${opt.value}"
+        title="${opt.title}"
+        aria-pressed="${opt.value === currentScale ? 'true' : 'false'}"
+      >${opt.label}</button>`,
+  ).join('')
 
   return `
     <section class="page settings-page">
@@ -35,6 +52,16 @@ export async function renderSettings() {
 
       <div class="settings-list">
         ${installHelpHtml()}
+
+        <div class="settings-row settings-row-stack">
+          <div>
+            <strong>Text size</strong>
+            <span>Adjust for this phone</span>
+          </div>
+          <div class="settings-font-scale" id="settings-font-scale" role="group" aria-label="Text size">
+            ${fontButtons}
+          </div>
+        </div>
 
         <a class="settings-row settings-link" href="#/store">
           <div>
@@ -91,6 +118,17 @@ export async function renderSettings() {
 
 export function bindSettings(root) {
   bindInstallHelp(root)
+
+  root.querySelector('#settings-font-scale')?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-scale]')
+    if (!btn) return
+    setFontScale(btn.dataset.scale)
+    root.querySelectorAll('#settings-font-scale .settings-font-btn').forEach((el) => {
+      const active = el === btn
+      el.classList.toggle('is-active', active)
+      el.setAttribute('aria-pressed', active ? 'true' : 'false')
+    })
+  })
 
   const notifyBtn = root.querySelector('#settings-notify-btn')
   const notifyLabel = root.querySelector('#settings-notify-label')

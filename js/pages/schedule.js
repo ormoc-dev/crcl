@@ -12,7 +12,10 @@ import {
   parseDocuments,
   publicDocUrl,
 } from '../lib/practice-docs.js'
-import { prefetchPracticeDocs } from '../lib/practice-doc-cache.js'
+import {
+  ensurePracticeDocCached,
+  prefetchPracticeDocs,
+} from '../lib/practice-doc-cache.js'
 import { openDocViewer } from '../components/doc-viewer.js'
 
 function escapeHtml(value) {
@@ -30,6 +33,16 @@ function itemDocs(item) {
   }))
 }
 
+function docPayloadAttrs(doc) {
+  return `
+    data-doc-path="${escapeHtml(doc.path || '')}"
+    data-doc-name="${escapeHtml(doc.name || 'document')}"
+    data-doc-size="${escapeHtml(String(doc.size || 0))}"
+    data-doc-mime="${escapeHtml(doc.mime || '')}"
+    data-doc-url="${escapeHtml(doc.href || '')}"
+  `
+}
+
 function docsPanelHtml(docs) {
   if (!docs.length) {
     return `<p class="schedule-card-docs-empty">No files attached.</p>`
@@ -40,7 +53,7 @@ function docsPanelHtml(docs) {
       const canOpen = Boolean(doc.path || doc.href)
       if (!canOpen) {
         return `
-          <div class="schedule-doc-link is-disabled">
+          <div class="schedule-doc-row is-disabled">
             <span class="schedule-doc-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v5h5" /></svg>
             </span>
@@ -52,27 +65,63 @@ function docsPanelHtml(docs) {
       }
 
       return `
-        <button
-          type="button"
-          class="schedule-doc-link"
-          data-action="open-doc"
-          data-doc-path="${escapeHtml(doc.path)}"
-          data-doc-name="${escapeHtml(doc.name)}"
-          data-doc-size="${escapeHtml(String(doc.size || 0))}"
-          data-doc-mime="${escapeHtml(doc.mime || '')}"
-          data-doc-url="${escapeHtml(doc.href || '')}"
-        >
+        <div class="schedule-doc-row" ${docPayloadAttrs(doc)}>
           <span class="schedule-doc-link-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v5h5" /></svg>
           </span>
           <span class="schedule-doc-link-copy">
             <strong>${escapeHtml(doc.name)}</strong>
-            <span>${escapeHtml(formatDocSize(doc.size))} · open in app</span>
+            <span>${escapeHtml(formatDocSize(doc.size))}</span>
           </span>
-          <span class="schedule-doc-link-go" aria-hidden="true">›</span>
-        </button>`
+          <span class="schedule-doc-actions">
+            <button type="button" class="schedule-doc-action" data-action="open-doc">Open</button>
+            <button type="button" class="schedule-doc-action" data-action="download-doc">Download</button>
+          </span>
+        </div>`
     })
     .join('')
+}
+
+function docFromEl(el) {
+  const row = el?.closest?.('.schedule-doc-row') || el
+  if (!row) return null
+  return {
+    path: row.dataset.docPath || '',
+    name: row.dataset.docName || 'document',
+    size: Number(row.dataset.docSize) || 0,
+    mime: row.dataset.docMime || '',
+    url: row.dataset.docUrl || '',
+  }
+}
+
+async function downloadPracticeDoc(doc) {
+  if (!doc) return
+  try {
+    const cached = await ensurePracticeDocCached(doc)
+    const href = URL.createObjectURL(cached.blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.download = cached.name || doc.name || 'document'
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 2500)
+  } catch (error) {
+    if (doc.url) {
+      const link = document.createElement('a')
+      link.href = doc.url
+      link.download = doc.name || 'document'
+      link.target = '_blank'
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      return
+    }
+    console.warn('Download failed:', error)
+    alert(error?.message || 'Could not download this file.')
+  }
 }
 
 function songsPanelHtml(songs) {
@@ -237,13 +286,9 @@ async function recoverMissingPracticeDocs(root) {
 }
 
 function collectDocsFromRoot(root) {
-  return Array.from(root.querySelectorAll('[data-action="open-doc"]')).map((btn) => ({
-    path: btn.dataset.docPath || '',
-    name: btn.dataset.docName || 'document',
-    size: Number(btn.dataset.docSize) || 0,
-    mime: btn.dataset.docMime || '',
-    url: btn.dataset.docUrl || '',
-  }))
+  return Array.from(root.querySelectorAll('.schedule-doc-row:not(.is-disabled)')).map(
+    (row) => docFromEl(row),
+  )
 }
 
 export function bindSchedule(root = document.getElementById('page-content')) {
@@ -271,16 +316,19 @@ export function bindSchedule(root = document.getElementById('page-content')) {
       return
     }
 
-    const docBtn = event.target.closest('[data-action="open-doc"]')
-    if (!docBtn || !root.contains(docBtn)) return
-    event.preventDefault()
-    openDocViewer({
-      path: docBtn.dataset.docPath || '',
-      name: docBtn.dataset.docName || 'document',
-      size: Number(docBtn.dataset.docSize) || 0,
-      mime: docBtn.dataset.docMime || '',
-      url: docBtn.dataset.docUrl || '',
-    })
+    const openBtn = event.target.closest('[data-action="open-doc"]')
+    if (openBtn && root.contains(openBtn)) {
+      event.preventDefault()
+      const doc = docFromEl(openBtn)
+      if (doc) openDocViewer(doc)
+      return
+    }
+
+    const downloadBtn = event.target.closest('[data-action="download-doc"]')
+    if (downloadBtn && root.contains(downloadBtn)) {
+      event.preventDefault()
+      downloadPracticeDoc(docFromEl(downloadBtn))
+    }
   }
   root.addEventListener('click', root._onScheduleAction)
 

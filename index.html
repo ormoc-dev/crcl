@@ -33,7 +33,18 @@
     <link rel="manifest" href="manifest.webmanifest?v=1" />
     <link rel="icon" type="image/png" sizes="192x192" href="public/assets/icon/icon-192.png" />
     <link rel="apple-touch-icon" href="public/assets/icon/icon-192.png" />
-    <link rel="stylesheet" href="css/main.css?v=19" />
+    <link rel="stylesheet" href="css/main.css?v=21" />
+    <script>
+      // Apply saved text size before first paint
+      ;(function () {
+        try {
+          var s = localStorage.getItem('crc-text-scale')
+          if (s === '0.9' || s === '1' || s === '1.15' || s === '1.3') {
+            document.documentElement.style.setProperty('--text-scale', s)
+          }
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="app">
@@ -42,6 +53,6 @@
       <nav class="bottom-bar" data-component="bottom-bar" aria-label="Primary"></nav>
     </div>
 
-    <script type="module" src="js/main.js?v=19"></script>
+    <script type="module" src="js/main.js?v=21"></script>
   </body>
 </html>

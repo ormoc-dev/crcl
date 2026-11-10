@@ -22,6 +22,7 @@ const SHELL_ASSETS = [
   './js/vendor/pdfjs/pdf.worker.min.mjs',
   './js/lib/install-pwa.js',
   './js/lib/pin-auth.js',
+  './js/lib/font-scale.js',
   './js/lib/app-settings.js',
   './js/lib/practice-docs.js',
   './js/lib/practice-doc-cache.js',
