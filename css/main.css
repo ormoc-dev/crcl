@@ -994,18 +994,21 @@ textarea {
 }
 
 .offline-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
+  position: relative;
+  z-index: 30;
+  flex-shrink: 0;
   background: var(--leather);
   color: #f7edd8;
   text-align: center;
-  padding: 0.65rem 1rem;
-  font-size: 0.88rem;
+  padding: 0.45rem 0.85rem;
+  padding-top: calc(0.45rem + env(safe-area-inset-top));
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.offline-banner[hidden] {
+  display: none !important;
 }
 
 .install-prompt {
@@ -2193,8 +2196,8 @@ body:has(#app.is-lyric-view) .app-toast-host {
 .doc-viewer-bar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
   align-items: center;
   padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-top));
   padding-top: calc(0.65rem + env(safe-area-inset-top));
@@ -2244,18 +2247,59 @@ body:has(#app.is-lyric-view) .app-toast-host {
   background: #111;
 }
 
+.doc-viewer-zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.doc-viewer-zoom[hidden] {
+  display: none !important;
+}
+
+.doc-viewer-zoom-btn {
+  appearance: none;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #c9a66b;
+  border-radius: 6px;
+  background: transparent;
+  color: #f7edd8;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.doc-viewer-zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.doc-viewer-zoom-label {
+  min-width: 2.6rem;
+  text-align: center;
+  color: rgba(247, 237, 216, 0.85);
+  font-family: var(--font-brand);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .doc-viewer-pdf {
   height: 100%;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
   background: #2a2a2a;
   padding: 0.5rem 0.35rem 1.25rem;
 }
 
 .doc-viewer-page {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: none;
   height: auto;
   margin: 0 auto 0.45rem;
   background: #fff;

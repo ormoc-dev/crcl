@@ -7,6 +7,11 @@ import { formatDocSize } from '../lib/practice-docs.js'
 let host = null
 let objectUrl = ''
 let pdfjsPromise = null
+let pdfSession = null
+
+const ZOOM_MIN = 0.75
+const ZOOM_MAX = 3
+const ZOOM_STEP = 0.25
 
 function revokeObjectUrl() {
   if (objectUrl) {
@@ -28,13 +33,41 @@ function ensureHost() {
         <strong id="doc-viewer-title">Document</strong>
         <span id="doc-viewer-meta"></span>
       </div>
+      <div class="doc-viewer-zoom" id="doc-viewer-zoom" hidden>
+        <button type="button" class="doc-viewer-zoom-btn" id="doc-zoom-out" aria-label="Zoom out">−</button>
+        <span class="doc-viewer-zoom-label" id="doc-zoom-label">100%</span>
+        <button type="button" class="doc-viewer-zoom-btn" id="doc-zoom-in" aria-label="Zoom in">+</button>
+      </div>
     </div>
     <div class="doc-viewer-body" id="doc-viewer-body"></div>
   `
   document.body.appendChild(host)
 
   host.querySelector('#doc-viewer-back')?.addEventListener('click', closeDocViewer)
+  host.querySelector('#doc-zoom-out')?.addEventListener('click', () => {
+    if (pdfSession) pdfSession.setZoom(pdfSession.zoom - ZOOM_STEP)
+  })
+  host.querySelector('#doc-zoom-in')?.addEventListener('click', () => {
+    if (pdfSession) pdfSession.setZoom(pdfSession.zoom + ZOOM_STEP)
+  })
   return host
+}
+
+function setZoomUi(zoom) {
+  const wrap = host?.querySelector('#doc-viewer-zoom')
+  const label = host?.querySelector('#doc-zoom-label')
+  const out = host?.querySelector('#doc-zoom-out')
+  const inn = host?.querySelector('#doc-zoom-in')
+  if (!wrap) return
+  wrap.hidden = false
+  if (label) label.textContent = `${Math.round(zoom * 100)}%`
+  if (out) out.disabled = zoom <= ZOOM_MIN + 0.001
+  if (inn) inn.disabled = zoom >= ZOOM_MAX - 0.001
+}
+
+function hideZoomUi() {
+  const wrap = host?.querySelector('#doc-viewer-zoom')
+  if (wrap) wrap.hidden = true
 }
 
 function setBusy(message) {
@@ -78,13 +111,17 @@ async function loadPdfJs() {
   return pdfjsPromise
 }
 
-function pdfBlob(blob, name = '') {
+function pdfBlob(blob) {
   if (blob?.type === 'application/pdf') return blob
   return new Blob([blob], { type: 'application/pdf' })
 }
 
-/** Render PDF pages with PDF.js — works on iOS where iframe/blob PDF fails. */
-async function renderPdfPages(body, blob) {
+function clampZoom(value) {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100))
+}
+
+/** Sharp PDF render with DPR + zoom / pinch. */
+async function openPdfViewer(body, blob) {
   const pdfjsLib = await loadPdfJs()
   const data = new Uint8Array(await blob.arrayBuffer())
   const pdf = await pdfjsLib.getDocument({ data }).promise
@@ -93,30 +130,146 @@ async function renderPdfPages(body, blob) {
   scroller.className = 'doc-viewer-pdf'
   body.replaceChildren(scroller)
 
-  const maxWidth = Math.max(280, Math.floor(scroller.clientWidth || body.clientWidth || window.innerWidth))
+  let zoom = 1
+  let painting = false
+  let pendingZoom = null
+  let generation = 0
 
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
-    const page = await pdf.getPage(pageNum)
-    const unscaled = page.getViewport({ scale: 1 })
-    const scale = Math.min(2.5, maxWidth / unscaled.width)
-    const viewport = page.getViewport({ scale })
+  const paint = async () => {
+    const gen = ++generation
+    painting = true
+    const cssWidth = Math.max(
+      260,
+      Math.floor(scroller.clientWidth || body.clientWidth || window.innerWidth) - 10,
+    )
+    // Cap DPR a bit for memory, but keep retina sharp
+    const dpr = Math.min(2.5, window.devicePixelRatio || 1)
 
-    const canvas = document.createElement('canvas')
-    canvas.className = 'doc-viewer-page'
-    canvas.width = Math.floor(viewport.width)
-    canvas.height = Math.floor(viewport.height)
-    canvas.style.width = '100%'
-    canvas.style.height = 'auto'
+    scroller.replaceChildren()
+    setZoomUi(zoom)
 
-    const context = canvas.getContext('2d', { alpha: false })
-    scroller.appendChild(canvas)
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+      if (gen !== generation) return
+      const page = await pdf.getPage(pageNum)
+      const unscaled = page.getViewport({ scale: 1 })
+      const fitScale = cssWidth / unscaled.width
+      const scale = fitScale * zoom
+      const viewport = page.getViewport({ scale })
 
-    await page.render({ canvasContext: context, viewport }).promise
+      const canvas = document.createElement('canvas')
+      canvas.className = 'doc-viewer-page'
+      const cssW = Math.floor(viewport.width)
+      const cssH = Math.floor(viewport.height)
+      canvas.width = Math.floor(cssW * dpr)
+      canvas.height = Math.floor(cssH * dpr)
+      canvas.style.width = `${cssW}px`
+      canvas.style.height = `${cssH}px`
+
+      const context = canvas.getContext('2d', { alpha: false })
+      scroller.appendChild(canvas)
+
+      const renderTask = page.render({
+        canvasContext: context,
+        viewport,
+        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+      })
+      await renderTask.promise
+    }
+
+    painting = false
+    if (pendingZoom != null && pendingZoom !== zoom) {
+      const next = pendingZoom
+      pendingZoom = null
+      zoom = next
+      await paint()
+    }
   }
+
+  const setZoom = async (next) => {
+    const value = clampZoom(next)
+    if (Math.abs(value - zoom) < 0.001) {
+      setZoomUi(zoom)
+      return
+    }
+    if (painting) {
+      pendingZoom = value
+      setZoomUi(value)
+      return
+    }
+    zoom = value
+    await paint()
+  }
+
+  // Pinch-to-zoom (live label, re-render when fingers lift)
+  let pinchStartDist = 0
+  let pinchStartZoom = 1
+  let pinchLiveZoom = null
+
+  const touchDistance = (touches) => {
+    const a = touches[0]
+    const b = touches[1]
+    const dx = a.clientX - b.clientX
+    const dy = a.clientY - b.clientY
+    return Math.hypot(dx, dy)
+  }
+
+  scroller.addEventListener(
+    'touchstart',
+    (event) => {
+      if (event.touches.length === 2) {
+        pinchStartDist = touchDistance(event.touches)
+        pinchStartZoom = zoom
+        pinchLiveZoom = zoom
+      }
+    },
+    { passive: true },
+  )
+
+  scroller.addEventListener(
+    'touchmove',
+    (event) => {
+      if (event.touches.length !== 2 || !pinchStartDist) return
+      event.preventDefault()
+      const dist = touchDistance(event.touches)
+      pinchLiveZoom = clampZoom(pinchStartZoom * (dist / pinchStartDist))
+      setZoomUi(pinchLiveZoom)
+    },
+    { passive: false },
+  )
+
+  scroller.addEventListener(
+    'touchend',
+    async (event) => {
+      if (event.touches.length >= 2) return
+      pinchStartDist = 0
+      if (pinchLiveZoom == null) return
+      const next = pinchLiveZoom
+      pinchLiveZoom = null
+      await setZoom(next)
+    },
+    { passive: true },
+  )
+
+  // Double-tap toggles fit / 200%
+  let lastTap = 0
+  scroller.addEventListener('click', () => {
+    const now = Date.now()
+    if (now - lastTap < 280) {
+      setZoom(zoom > 1.2 ? 1 : 2)
+      lastTap = 0
+      return
+    }
+    lastTap = now
+  })
+
+  pdfSession = { setZoom, get zoom() { return zoom } }
+  await paint()
 }
 
 export function closeDocViewer() {
   revokeObjectUrl()
+  pdfSession = null
+  hideZoomUi()
   if (!host) return
   host.hidden = true
   document.getElementById('app')?.classList.remove('is-doc-viewer')
@@ -135,6 +288,8 @@ export async function openDocViewer(doc) {
   const body = root.querySelector('#doc-viewer-body')
 
   revokeObjectUrl()
+  pdfSession = null
+  hideZoomUi()
   root.hidden = false
   document.getElementById('app')?.classList.add('is-doc-viewer')
 
@@ -146,7 +301,7 @@ export async function openDocViewer(doc) {
     const cached = await ensurePracticeDocCached(doc)
     const typed =
       isPdfDoc(cached) || isPdfDoc(doc)
-        ? pdfBlob(cached.blob, cached.name)
+        ? pdfBlob(cached.blob)
         : cached.blob
     objectUrl = URL.createObjectURL(typed)
 
@@ -158,7 +313,7 @@ export async function openDocViewer(doc) {
 
     if (isPdfDoc(cached) || isPdfDoc(doc)) {
       setBusy('Opening PDF…')
-      await renderPdfPages(body, typed)
+      await openPdfViewer(body, typed)
       return
     }
 
