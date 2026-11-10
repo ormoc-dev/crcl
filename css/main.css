@@ -320,6 +320,13 @@ textarea {
   color: var(--brown-dark);
 }
 
+.audio-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .audio-notice {
   margin: 0 0 0.55rem !important;
 }

@@ -123,15 +123,43 @@ export function pickRecorderMime() {
   return ''
 }
 
-export function recorderFileExt(mime = '') {
+export function recorderFileExt(mime = '', fileName = '') {
+  const name = String(fileName || '').toLowerCase()
+  const fromName = name.includes('.') ? name.split('.').pop() : ''
+  if (fromName && ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'webm', 'mp4', 'mpeg'].includes(fromName)) {
+    return fromName === 'mp4' ? 'm4a' : fromName
+  }
+
   const lower = String(mime).toLowerCase()
   if (lower.includes('mp4') || lower.includes('m4a') || lower.includes('aac')) return 'm4a'
   if (lower.includes('ogg')) return 'ogg'
+  if (lower.includes('wav')) return 'wav'
   if (lower.includes('mpeg') || lower.includes('mp3')) return 'mp3'
   return 'webm'
 }
 
-export async function uploadAudioRecording({ category, title, blob, mime }) {
+export const AUDIO_ACCEPT =
+  'audio/*,.mp3,.m4a,.aac,.wav,.ogg,.webm,.mpeg,.mp4'
+
+const ALLOWED_AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'wav', 'ogg', 'webm', 'mpeg', 'mp4'])
+
+export function validateAudioFile(file) {
+  if (!file) return 'Missing audio file.'
+  if (file.size > AUDIO_MAX_BYTES) return `"${file.name}" is over 30 MB.`
+  const ext = String(file.name || '')
+    .toLowerCase()
+    .split('.')
+    .pop()
+  const mime = String(file.type || '').toLowerCase()
+  const okExt = ALLOWED_AUDIO_EXT.has(ext)
+  const okMime = !mime || mime.startsWith('audio/') || mime === 'application/octet-stream'
+  if (!okExt && !okMime) {
+    return `"${file.name}" must be an audio file (mp3, m4a, wav, ogg, webm).`
+  }
+  return ''
+}
+
+export async function uploadAudioRecording({ category, title, blob, mime, fileName = '' }) {
   if (!isValidAudioCategory(category)) {
     throw new Error('Choose a voice part first (Soprano, Alto, Tenor, Bass, or Mixed).')
   }
@@ -154,7 +182,7 @@ export async function uploadAudioRecording({ category, title, blob, mime }) {
     .trim()
     .slice(0, 80) || 'Recording'
   const contentType = mime || blob.type || 'audio/webm'
-  const ext = recorderFileExt(contentType)
+  const ext = recorderFileExt(contentType, fileName)
   const path = `${category}/${id}-${safeTitle}.${ext}`
 
   const { error: uploadError } = await supabase.storage.from(AUDIO_BUCKET).upload(path, blob, {

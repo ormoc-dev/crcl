@@ -1,4 +1,5 @@
 import {
+  AUDIO_ACCEPT,
   AUDIO_CATEGORIES,
   categoryLabel,
   deleteAudioRecording,
@@ -8,6 +9,7 @@ import {
   pickRecorderMime,
   pullAudioRecordings,
   uploadAudioRecording,
+  validateAudioFile,
 } from '../lib/audio-recordings.js'
 import { ensureAudioPlayUrl, putCachedAudio, removeCachedAudio } from '../lib/audio-cache.js'
 import { confirmModal } from '../components/confirm-modal.js'
@@ -102,12 +104,27 @@ function pageHtml({ category = '', items = [], notice = '' } = {}) {
               : 'Select a category to continue'
           }
         </p>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          id="audio-record-btn"
-          ${canRecord ? '' : 'disabled'}
-        >Record</button>
+        <div class="audio-toolbar-actions">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            id="audio-upload-btn"
+            ${canRecord ? '' : 'disabled'}
+          >Upload</button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            id="audio-record-btn"
+            ${canRecord ? '' : 'disabled'}
+          >Record</button>
+          <input
+            type="file"
+            id="audio-upload-input"
+            accept="${AUDIO_ACCEPT}"
+            multiple
+            hidden
+          />
+        </div>
       </div>
 
       ${notice ? `<p class="sync-notice audio-notice">${escapeHtml(notice)}</p>` : ''}
@@ -181,6 +198,8 @@ export function bindAudio(root = document.getElementById('page-content')) {
 
   const panel = () => root.querySelector('#audio-panel')
   const recordBtn = () => root.querySelector('#audio-record-btn')
+  const uploadBtn = () => root.querySelector('#audio-upload-btn')
+  const uploadInput = () => root.querySelector('#audio-upload-input')
   const sheet = () => root.querySelector('#audio-record-sheet')
   const vizEl = () => root.querySelector('#audio-record-viz')
   const waveCanvas = () => root.querySelector('#audio-wave-canvas')
@@ -393,8 +412,11 @@ export function bindAudio(root = document.getElementById('page-content')) {
         : 'Select a category to continue'
     }
 
+    const canUse = isValidAudioCategory(selectedCategory)
     const btn = recordBtn()
-    if (btn) btn.disabled = !isValidAudioCategory(selectedCategory)
+    if (btn) btn.disabled = !canUse
+    const upBtn = uploadBtn()
+    if (upBtn) upBtn.disabled = !canUse
 
     const host = panel()
     if (host) host.innerHTML = listHtml(items, selectedCategory)
@@ -433,6 +455,83 @@ export function bindAudio(root = document.getElementById('page-content')) {
       return
     }
     openSheet()
+  })
+
+  uploadBtn()?.addEventListener('click', () => {
+    if (!isValidAudioCategory(selectedCategory)) {
+      alert('Select a voice part first before uploading.')
+      return
+    }
+    uploadInput()?.click()
+  })
+
+  uploadInput()?.addEventListener('change', async (event) => {
+    const input = event.currentTarget
+    const files = Array.from(input.files || [])
+    input.value = ''
+    if (!files.length) return
+
+    if (!isValidAudioCategory(selectedCategory)) {
+      alert('Select a voice part first before uploading.')
+      return
+    }
+
+    const upBtn = uploadBtn()
+    if (upBtn) {
+      upBtn.disabled = true
+      upBtn.textContent = 'Uploading…'
+    }
+
+    let savedCount = 0
+    let lastError = ''
+
+    for (const file of files) {
+      const err = validateAudioFile(file)
+      if (err) {
+        lastError = err
+        continue
+      }
+
+      const title = String(file.name || '')
+        .replace(/\.[^.]+$/, '')
+        .trim() || `${categoryLabel(selectedCategory)} upload`
+
+      try {
+        const saved = await uploadAudioRecording({
+          category: selectedCategory,
+          title,
+          blob: file,
+          mime: file.type || 'audio/mpeg',
+          fileName: file.name,
+        })
+        await putCachedAudio({
+          path: saved.path,
+          name: saved.title,
+          mime: saved.mime,
+          blob: file,
+          size: saved.size,
+          url: saved.url,
+        })
+        savedCount += 1
+      } catch (error) {
+        lastError = error?.message || 'Upload failed.'
+      }
+    }
+
+    if (upBtn) {
+      upBtn.disabled = !isValidAudioCategory(selectedCategory)
+      upBtn.textContent = 'Upload'
+    }
+
+    if (savedCount) {
+      await remountList(
+        savedCount === 1
+          ? 'Audio uploaded.'
+          : `${savedCount} audio files uploaded.`,
+      )
+    }
+    if (lastError && !savedCount) alert(lastError)
+    else if (lastError) alert(`Some files failed: ${lastError}`)
   })
 
   root.querySelector('#audio-rec-cancel')?.addEventListener('click', closeSheet)
