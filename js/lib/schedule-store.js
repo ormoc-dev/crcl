@@ -4,6 +4,7 @@ import {
   enqueueSync,
   SCHEDULE_STORE,
 } from './lyrics-store.js'
+import { parseDocuments } from './practice-docs.js'
 
 /** Placeholder IDs that used to be auto-seeded — remove from devices once. */
 const BUILTIN_SCHEDULE_IDS = new Set([
@@ -13,15 +14,85 @@ const BUILTIN_SCHEDULE_IDS = new Set([
   'prac-saturday',
 ])
 
+/** True when day is stored as YYYY-MM-DD. */
+export function isScheduleDate(day) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(day || '').trim())
+}
+
+/** Value for <input type="date"> (blank for legacy text days). */
+export function toDateInputValue(day) {
+  const value = String(day || '').trim()
+  return isScheduleDate(value) ? value : ''
+}
+
+/** Short label for schedule cards (e.g. SUN or legacy text). */
+export function formatScheduleDayShort(day) {
+  const value = String(day || '').trim()
+  if (!value) return '—'
+  if (!isScheduleDate(value)) return value
+  try {
+    return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()
+  } catch {
+    return value
+  }
+}
+
+/** Longer label for lists/notes (e.g. Sunday, Mar 10). */
+export function formatScheduleDayLong(day) {
+  const value = String(day || '').trim()
+  if (!value) return '—'
+  if (!isScheduleDate(value)) return value
+  try {
+    return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return value
+  }
+}
+
+/** Linked choir songs on a service (id + display fields). */
+export function parseSongs(raw) {
+  if (raw == null || raw === '') return []
+  let list = raw
+  if (typeof raw === 'string') {
+    try {
+      list = JSON.parse(raw)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(list)) return []
+
+  const seen = new Set()
+  return list
+    .map((song) => ({
+      id: String(song?.id || '').trim(),
+      title: String(song?.title || 'Untitled').trim() || 'Untitled',
+      artist: String(song?.artist || '').trim(),
+      key: String(song?.key || '').trim(),
+    }))
+    .filter((song) => {
+      if (!song.id || seen.has(song.id)) return false
+      seen.add(song.id)
+      return true
+    })
+}
+
 function normalizeItem(item) {
+  const type = item.type === 'practice' ? 'practice' : 'service'
   return {
     ...item,
     id: item.id || (crypto.randomUUID ? crypto.randomUUID() : `sched-${Date.now()}`),
-    type: item.type === 'practice' ? 'practice' : 'service',
+    type,
     day: String(item.day || '').trim(),
     title: String(item.title || '').trim(),
     time: String(item.time || '').trim(),
     note: String(item.note || '').trim(),
+    documents: type === 'practice' ? parseDocuments(item.documents) : [],
+    songs: type === 'service' ? parseSongs(item.songs) : [],
     updated_at: item.updated_at || new Date().toISOString(),
     synced: item.synced !== false,
     deleted: Boolean(item.deleted),
@@ -133,9 +204,22 @@ export async function replaceAllSchedule(items) {
     if (!pendingIds.has(row.id)) store.delete(row.id)
   }
 
+  const localById = new Map(existing.map((row) => [row.id, row]))
+
   for (const item of items) {
     if (pendingIds.has(item.id)) continue
-    store.put(normalizeItem({ ...item, synced: true, deleted: false }))
+
+    // If remote omitted documents/songs (old schema), keep local values
+    const local = localById.get(item.id)
+    const merged = { ...item }
+    if (item.documents === undefined && local) {
+      merged.documents = local.documents || []
+    }
+    if (item.songs === undefined && local) {
+      merged.songs = local.songs || []
+    }
+
+    store.put(normalizeItem({ ...merged, synced: true, deleted: false }))
   }
 
   await txDone(tx)

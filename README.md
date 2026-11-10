@@ -32,4 +32,5 @@ Creates `dist/` with env synced + stamped cache busting.
    - `VITE_SUPABASE_ANON_KEY`
 5. Redeploy
 
-Also run `supabase/schema.sql` once in the Supabase SQL editor.
+Also run these once in the Supabase SQL editor (in order):
+`supabase/lyrics.sql`, `supabase/schedule.sql`, `supabase/practice-docs.sql`.

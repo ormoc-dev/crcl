@@ -8,13 +8,16 @@ import { removeBuiltInScheduleSamples } from './lib/schedule-store.js'
 import { hasSupabaseConfig, startAutoSync } from './lib/lyrics-sync.js'
 import { registerServiceWorker } from './lib/register-sw.js'
 import { startNotifyService } from './lib/notify-service.js'
+import { lockScrollBounce } from './lib/scroll-lock.js'
 
 async function boot() {
   const header = document.querySelector('[data-component="header"]')
   const bottomBar = document.querySelector('[data-component="bottom-bar"]')
+  const pageContent = document.getElementById('page-content')
 
   if (header) renderHeader(header)
   if (bottomBar) renderBottomBar(bottomBar)
+  if (pageContent) lockScrollBounce(pageContent)
 
   renderOfflineBanner()
   renderInstallPrompt()

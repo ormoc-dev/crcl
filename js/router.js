@@ -1,5 +1,6 @@
 import { renderHome, bindHome, refreshHomeQuietly } from './pages/home.js'
-import { renderSchedule } from './pages/schedule.js'
+import { renderSchedule, bindSchedule, refreshScheduleQuietly } from './pages/schedule.js'
+import { closeDocViewer } from './components/doc-viewer.js'
 import { renderSettings, bindSettings } from './pages/settings.js'
 import { renderStore, bindStore } from './pages/store.js'
 import { renderPrivacy } from './pages/privacy.js'
@@ -33,6 +34,7 @@ export async function renderRoute() {
   // Stop previous lyric page auto-scroll / listeners
   mount._lyricCleanup?.()
   stopLyricAutoScroll()
+  closeDocViewer()
 
   const isLyricView = /^\/lyrics\/[^/]+$/.test(path)
   app?.classList.toggle('is-lyric-view', isLyricView)
@@ -40,9 +42,11 @@ export async function renderRoute() {
   // Keep current page visible until the next page is ready (no loading blink)
   const html = await resolvePage(path)
   mount.innerHTML = html
+  mount.scrollTop = 0
   setActiveNav(path)
 
   if (path === '/' || path === '') bindHome()
+  if (path === '/schedule') bindSchedule(mount)
   if (path === '/settings') bindSettings(mount)
   if (path === '/store') bindStore(mount)
   if (isLyricView) bindLyric(mount)
@@ -51,13 +55,12 @@ export async function renderRoute() {
 export function startRouter() {
   window.addEventListener('hashchange', renderRoute)
 
-  // Auto-sync must NOT remount pages — only quietly refresh the home list
+  // Auto-sync must NOT remount pages — quietly refresh list pages
   window.addEventListener('crc-sync', (event) => {
     if (event.detail?.status !== 'done') return
     const path = getPath()
-    if (path === '/' || path === '') {
-      refreshHomeQuietly()
-    }
+    if (path === '/' || path === '') refreshHomeQuietly()
+    if (path === '/schedule') refreshScheduleQuietly()
   })
 
   renderRoute()

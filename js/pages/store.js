@@ -11,10 +11,27 @@ import {
   saveScheduleItem,
   deleteScheduleItem,
   ensureScheduleReady,
+  formatScheduleDayLong,
+  parseSongs,
+  toDateInputValue,
 } from '../lib/schedule-store.js'
 import { isStoreUnlocked, unlockStore, lockStore } from '../lib/store-auth.js'
 import { hasSupabaseConfig, syncLyrics } from '../lib/lyrics-sync.js'
 import { confirmModal } from '../components/confirm-modal.js'
+import {
+  PRACTICE_DOC_ACCEPT,
+  deletePracticeDocPaths,
+  formatDocSize,
+  normalizeDocuments,
+  parseDocuments,
+  publicDocUrl,
+  uploadPracticeFiles,
+  validatePracticeFile,
+} from '../lib/practice-docs.js'
+import {
+  putCachedPracticeDoc,
+  removeCachedPracticeDocs,
+} from '../lib/practice-doc-cache.js'
 
 function escapeHtml(value) {
   return String(value)
@@ -101,12 +118,16 @@ function songRow(lyric) {
 
 function scheduleRow(item) {
   const pending = item.synced === false ? ' · Syncing' : ''
+  const docs = item.type === 'practice' ? parseDocuments(item.documents) : []
+  const songs = item.type === 'service' ? parseSongs(item.songs) : []
+  const docsHint = docs.length ? ` · ${docs.length} file${docs.length === 1 ? '' : 's'}` : ''
+  const songsHint = songs.length ? ` · ${songs.length} song${songs.length === 1 ? '' : 's'}` : ''
 
   return `
     <div class="store-song" data-id="${escapeHtml(item.id)}" data-kind="schedule">
       <div class="store-song-copy">
         <strong>${escapeHtml(item.title)}</strong>
-        <span>${escapeHtml(item.day)} · ${escapeHtml(item.time || '—')}${pending}</span>
+        <span>${escapeHtml(formatScheduleDayLong(item.day))} · ${escapeHtml(item.time || '—')}${songsHint}${docsHint}${pending}</span>
       </div>
       <div class="store-song-actions">
         <button type="button" class="icon-btn" data-action="edit" aria-label="Edit ${escapeHtml(item.title)}">
@@ -145,15 +166,159 @@ function lyricEditor(lyric = null) {
   `
 }
 
-function scheduleEditor(type, item = null) {
+function practiceDocsEditor(item = null) {
+  const docs = parseDocuments(item?.documents)
+  const rows =
+    docs
+      .map(
+        (doc) => `
+      <div class="practice-doc-row" data-doc-id="${escapeHtml(doc.id)}" data-doc-path="${escapeHtml(doc.path)}" data-doc-name="${escapeHtml(doc.name)}" data-doc-size="${escapeHtml(String(doc.size || 0))}" data-doc-mime="${escapeHtml(doc.mime || '')}" data-doc-url="${escapeHtml(doc.url || publicDocUrl(doc.path))}">
+        <div class="practice-doc-copy">
+          <strong>${escapeHtml(doc.name)}</strong>
+          <span>${escapeHtml(formatDocSize(doc.size))}</span>
+        </div>
+        <button type="button" class="icon-btn icon-btn-danger" data-action="remove-doc" aria-label="Remove ${escapeHtml(doc.name)}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 7h14" />
+            <path d="M9 7V5h6v2" />
+            <path d="M8 7l1 13h6l1-13" />
+          </svg>
+        </button>
+      </div>`,
+      )
+      .join('') || `<p class="practice-docs-empty">No documents yet.</p>`
+
+  return `
+    <div class="practice-docs" id="practice-docs">
+      <div class="practice-docs-head">
+        <span>Practice documents</span>
+        <span>Optional</span>
+      </div>
+      <div class="practice-docs-list" id="practice-docs-existing">${rows}</div>
+      <div class="practice-docs-pending" id="practice-docs-pending" hidden></div>
+      <label class="practice-docs-dropzone" for="practice-docs-input">
+        <input type="file" id="practice-docs-input" multiple accept="${PRACTICE_DOC_ACCEPT}" />
+        <span class="practice-docs-dropzone-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 16V7" />
+            <path d="M8.5 10.5 12 7l3.5 3.5" />
+            <path d="M5 16.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1.5" />
+          </svg>
+        </span>
+        <span class="practice-docs-dropzone-copy">
+          <strong>Add practice files</strong>
+          <span>PDF, Word, or Excel · up to 20 MB each</span>
+        </span>
+      </label>
+      <p class="form-error" id="practice-docs-error" hidden></p>
+    </div>
+  `
+}
+
+function serviceSongRow(song) {
+  return `
+    <div
+      class="service-song-row"
+      data-song-id="${escapeHtml(song.id)}"
+      data-song-title="${escapeHtml(song.title)}"
+      data-song-artist="${escapeHtml(song.artist || '')}"
+      data-song-key="${escapeHtml(song.key || '')}"
+    >
+      <div class="service-song-copy">
+        <strong>${escapeHtml(song.title)}</strong>
+        <span>${escapeHtml(song.artist || 'Unknown')}${song.key ? ` · Key ${escapeHtml(song.key)}` : ''}</span>
+      </div>
+      <button type="button" class="icon-btn icon-btn-danger" data-action="remove-song" aria-label="Remove ${escapeHtml(song.title)}">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 7h14" />
+          <path d="M9 7V5h6v2" />
+          <path d="M8 7l1 13h6l1-13" />
+        </svg>
+      </button>
+    </div>`
+}
+
+function serviceSongsEditor(item = null, lyrics = []) {
+  const selected = parseSongs(item?.songs)
+  const catalog = lyrics
+    .filter((lyric) => lyric.id)
+    .map((lyric) => ({
+      id: lyric.id,
+      title: lyric.title || 'Untitled',
+      artist: lyric.artist || '',
+      key: lyric.key || '',
+    }))
+
+  return `
+    <div class="service-songs" id="service-songs">
+      <div class="service-songs-head">
+        <span>Service songs</span>
+        <span>Search & add from library</span>
+      </div>
+      <div class="service-songs-list" id="service-songs-list">
+        ${
+          selected.map(serviceSongRow).join('') ||
+          `<p class="service-songs-empty">No songs linked yet.</p>`
+        }
+      </div>
+      <div class="service-songs-picker">
+        <input
+          type="search"
+          id="service-songs-search"
+          placeholder="Search songs by title, artist, or key…"
+          autocomplete="off"
+          enterkeyhint="search"
+        />
+        <div class="service-songs-results" id="service-songs-results" hidden></div>
+      </div>
+      <script type="application/json" id="service-songs-catalog">${JSON.stringify(catalog).replace(/</g, '\\u003c')}</script>
+    </div>
+  `
+}
+
+async function scheduleEditor(type, item = null) {
   const label = type === 'practice' ? 'practice' : 'service'
+  const lyrics =
+    type === 'service'
+      ? (await getAllLyrics()).sort((a, b) => a.title.localeCompare(b.title))
+      : []
+
+  const dayValue = toDateInputValue(item?.day)
+  const legacyDay = item?.day && !dayValue ? String(item.day) : ''
+
   return `
     <form class="store-form" id="store-form" data-kind="schedule" data-type="${escapeHtml(type)}">
       <input type="hidden" name="id" value="${escapeHtml(item?.id || '')}" />
-      <input name="day" type="text" required placeholder="Day (e.g. Sunday)" value="${escapeHtml(item?.day || '')}" />
+      <label class="store-date-field">
+        <span class="store-date-label">Date</span>
+        <span class="store-date-control">
+          <button type="button" class="store-date-icon" id="store-date-picker-btn" aria-label="Open calendar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M3 10h18" />
+              <path d="M8 3v4" />
+              <path d="M16 3v4" />
+            </svg>
+          </button>
+          <input
+            name="day"
+            id="store-day-input"
+            type="date"
+            required
+            value="${escapeHtml(dayValue)}"
+          />
+        </span>
+        ${
+          legacyDay
+            ? `<span class="store-date-hint">Was “${escapeHtml(legacyDay)}” — pick a date to update.</span>`
+            : ''
+        }
+      </label>
       <input name="title" type="text" required placeholder="Title" value="${escapeHtml(item?.title || '')}" />
       <input name="time" type="text" required placeholder="Time (e.g. 6:00 AM)" value="${escapeHtml(item?.time || '')}" />
       <textarea name="note" rows="3" placeholder="Note (optional)">${escapeHtml(item?.note || '')}</textarea>
+      ${type === 'service' ? serviceSongsEditor(item, lyrics) : ''}
+      ${type === 'practice' ? practiceDocsEditor(item) : ''}
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">${item ? 'Save' : `Add ${label}`}</button>
         <button type="button" class="btn btn-ghost" id="store-cancel">Cancel</button>
@@ -180,7 +345,7 @@ async function unlockedScreen({
       body = lyricEditor(editing)
     } else {
       const editing = editingId ? await getScheduleItem(editingId) : null
-      body = scheduleEditor(tab, editing)
+      body = await scheduleEditor(tab, editing)
     }
   } else if (tab === 'lyrics') {
     const lyrics = (await getAllLyrics()).sort((a, b) => a.title.localeCompare(b.title))
@@ -299,8 +464,15 @@ export function bindStore(root) {
       })
       if (!ok) return
 
-      if (isSchedule) await deleteScheduleItem(id)
-      else await deleteLyric(id)
+      if (isSchedule) {
+        const existing = await getScheduleItem(id)
+        const paths = parseDocuments(existing?.documents).map((doc) => doc.path)
+        await deleteScheduleItem(id)
+        await deletePracticeDocPaths(paths)
+        await removeCachedPracticeDocs(paths)
+      } else {
+        await deleteLyric(id)
+      }
       await syncLyrics()
       await remount(root, {
         tab: currentTab,
@@ -311,35 +483,330 @@ export function bindStore(root) {
   })
 
   const form = root.querySelector('#store-form')
-  form?.addEventListener('submit', async (event) => {
-    event.preventDefault()
-    const data = new FormData(form)
-    const kind = form.dataset.kind
+  if (form) {
+    const pendingFiles = []
+    const removedPaths = []
+    const pendingHost = form.querySelector('#practice-docs-pending')
+    const errorEl = form.querySelector('#practice-docs-error')
+    const submitBtn = form.querySelector('button[type="submit"]')
+    const dayInput = form.querySelector('#store-day-input')
+    const songsList = form.querySelector('#service-songs-list')
+    const songsSearch = form.querySelector('#service-songs-search')
+    const songsResults = form.querySelector('#service-songs-results')
+    const catalogEl = form.querySelector('#service-songs-catalog')
 
-    if (kind === 'schedule') {
-      await saveScheduleItem({
-        id: String(data.get('id') || '') || undefined,
-        type: form.dataset.type === 'practice' ? 'practice' : 'service',
-        day: String(data.get('day') || '').trim(),
-        title: String(data.get('title') || '').trim(),
-        time: String(data.get('time') || '').trim(),
-        note: String(data.get('note') || '').trim(),
-      })
-    } else {
-      await saveLyric({
-        id: String(data.get('id') || '') || undefined,
-        title: String(data.get('title') || '').trim(),
-        artist: String(data.get('artist') || '').trim(),
-        key: String(data.get('key') || '').trim(),
-        body: String(data.get('body') || '').trim(),
-      })
+    form.querySelector('#store-date-picker-btn')?.addEventListener('click', () => {
+      if (!dayInput) return
+      if (typeof dayInput.showPicker === 'function') {
+        try {
+          dayInput.showPicker()
+          return
+        } catch {
+          /* fall through */
+        }
+      }
+      dayInput.focus()
+      dayInput.click()
+    })
+
+    let songCatalog = []
+    try {
+      songCatalog = JSON.parse(catalogEl?.textContent || '[]')
+      if (!Array.isArray(songCatalog)) songCatalog = []
+    } catch {
+      songCatalog = []
     }
 
-    await syncLyrics()
-    await remount(root, {
-      tab: currentTab,
-      mode: 'list',
-      notice: navigator.onLine ? 'Saved and synced.' : 'Saved offline. Will sync when online.',
+    function selectedSongIds() {
+      return new Set(
+        Array.from(form.querySelectorAll('#service-songs-list .service-song-row')).map(
+          (row) => row.dataset.songId || '',
+        ),
+      )
+    }
+
+    function refreshSongsEmpty() {
+      if (!songsList) return
+      if (!songsList.querySelector('.service-song-row')) {
+        songsList.innerHTML = `<p class="service-songs-empty">No songs linked yet.</p>`
+      }
+    }
+
+    function renderSongResults(query = '') {
+      if (!songsResults) return
+      const q = String(query || '').trim().toLowerCase()
+      const taken = selectedSongIds()
+      const matches = songCatalog
+        .filter((song) => song.id && !taken.has(song.id))
+        .filter((song) => {
+          if (!q) return true
+          const hay = `${song.title} ${song.artist} ${song.key}`.toLowerCase()
+          return hay.includes(q)
+        })
+        .slice(0, 12)
+
+      if (!q) {
+        songsResults.hidden = true
+        songsResults.innerHTML = ''
+        return
+      }
+
+      songsResults.hidden = false
+      if (!matches.length) {
+        songsResults.innerHTML = `<p class="service-songs-results-empty">No songs match “${escapeHtml(query)}”.</p>`
+        return
+      }
+
+      songsResults.innerHTML = matches
+        .map(
+          (song) => `
+          <button
+            type="button"
+            class="service-songs-result"
+            data-action="pick-song"
+            data-song-id="${escapeHtml(song.id)}"
+            data-song-title="${escapeHtml(song.title)}"
+            data-song-artist="${escapeHtml(song.artist || '')}"
+            data-song-key="${escapeHtml(song.key || '')}"
+          >
+            <strong>${escapeHtml(song.title)}</strong>
+            <span>${escapeHtml(song.artist || 'Unknown')}${song.key ? ` · Key ${escapeHtml(song.key)}` : ''}</span>
+          </button>`,
+        )
+        .join('')
+    }
+
+    function addSongFromDataset(dataset) {
+      if (!songsList) return
+      const id = dataset.songId || ''
+      if (!id || selectedSongIds().has(id)) return
+
+      songsList.querySelector('.service-songs-empty')?.remove()
+      songsList.insertAdjacentHTML(
+        'beforeend',
+        serviceSongRow({
+          id,
+          title: dataset.songTitle || 'Untitled',
+          artist: dataset.songArtist || '',
+          key: dataset.songKey || '',
+        }),
+      )
+
+      if (songsSearch) {
+        songsSearch.value = ''
+        songsSearch.focus()
+      }
+      renderSongResults('')
+    }
+
+    songsSearch?.addEventListener('input', () => {
+      renderSongResults(songsSearch.value)
     })
-  })
+
+    songsSearch?.addEventListener('focus', () => {
+      if (songsSearch.value.trim()) renderSongResults(songsSearch.value)
+    })
+
+    songsResults?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-action="pick-song"]')
+      if (!btn) return
+      addSongFromDataset(btn.dataset)
+    })
+
+    songsList?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-action="remove-song"]')
+      if (!btn) return
+      const row = btn.closest('.service-song-row')
+      if (!row) return
+      row.remove()
+      refreshSongsEmpty()
+      if (songsSearch?.value.trim()) renderSongResults(songsSearch.value)
+    })
+
+    function setDocsError(message) {
+      if (!errorEl) return
+      if (!message) {
+        errorEl.hidden = true
+        errorEl.textContent = ''
+        return
+      }
+      errorEl.hidden = false
+      errorEl.textContent = message
+    }
+
+    function renderPending() {
+      if (!pendingHost) return
+      if (!pendingFiles.length) {
+        pendingHost.hidden = true
+        pendingHost.innerHTML = ''
+        return
+      }
+      pendingHost.hidden = false
+      pendingHost.innerHTML = pendingFiles
+        .map(
+          (file, index) => `
+        <div class="practice-doc-row is-pending" data-pending-index="${index}">
+          <div class="practice-doc-copy">
+            <strong>${escapeHtml(file.name)}</strong>
+            <span>${escapeHtml(formatDocSize(file.size))} · new</span>
+          </div>
+          <button type="button" class="icon-btn icon-btn-danger" data-action="remove-pending" aria-label="Remove ${escapeHtml(file.name)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14" />
+              <path d="M9 7V5h6v2" />
+              <path d="M8 7l1 13h6l1-13" />
+            </svg>
+          </button>
+        </div>`,
+        )
+        .join('')
+    }
+
+    form.querySelector('#practice-docs-input')?.addEventListener('change', (event) => {
+      const input = event.currentTarget
+      const files = Array.from(input.files || [])
+      setDocsError('')
+      for (const file of files) {
+        const err = validatePracticeFile(file)
+        if (err) {
+          setDocsError(err)
+          continue
+        }
+        pendingFiles.push(file)
+      }
+      input.value = ''
+      renderPending()
+    })
+
+    form.querySelector('#practice-docs-existing')?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-action="remove-doc"]')
+      if (!btn) return
+      const row = btn.closest('.practice-doc-row')
+      if (!row) return
+      const path = row.dataset.docPath
+      if (path) removedPaths.push(path)
+      row.remove()
+      const list = form.querySelector('#practice-docs-existing')
+      if (list && !list.querySelector('.practice-doc-row')) {
+        list.innerHTML = `<p class="practice-docs-empty">No documents yet.</p>`
+      }
+    })
+
+    pendingHost?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-action="remove-pending"]')
+      if (!btn) return
+      const row = btn.closest('[data-pending-index]')
+      if (!row) return
+      const index = Number(row.dataset.pendingIndex)
+      if (Number.isInteger(index)) pendingFiles.splice(index, 1)
+      renderPending()
+    })
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      const data = new FormData(form)
+      const kind = form.dataset.kind
+      setDocsError('')
+
+      if (kind === 'schedule') {
+        const type = form.dataset.type === 'practice' ? 'practice' : 'service'
+        const existingId = String(data.get('id') || '').trim()
+        const scheduleId =
+          existingId ||
+          (crypto.randomUUID ? crypto.randomUUID() : `sched-${Date.now()}`)
+
+        let documents = []
+        let songs = []
+
+        if (type === 'practice') {
+          documents = Array.from(form.querySelectorAll('#practice-docs-existing .practice-doc-row')).map(
+            (row) => ({
+              id: row.dataset.docId || '',
+              name: row.dataset.docName || 'document',
+              path: row.dataset.docPath || '',
+              size: Number(row.dataset.docSize) || 0,
+              mime: row.dataset.docMime || '',
+              url: row.dataset.docUrl || '',
+            }),
+          )
+
+          if (pendingFiles.length) {
+            try {
+              if (submitBtn) {
+                submitBtn.disabled = true
+                submitBtn.textContent = 'Uploading…'
+              }
+              const uploaded = await uploadPracticeFiles(scheduleId, pendingFiles)
+              for (let i = 0; i < uploaded.length; i += 1) {
+                const meta = uploaded[i]
+                const file = pendingFiles[i]
+                if (meta?.path && file) {
+                  await putCachedPracticeDoc({
+                    path: meta.path,
+                    name: meta.name,
+                    mime: meta.mime || file.type,
+                    blob: file,
+                    size: meta.size || file.size,
+                    url: meta.url,
+                  })
+                }
+              }
+              documents = [...documents, ...uploaded]
+            } catch (error) {
+              setDocsError(error?.message || 'Upload failed.')
+              if (submitBtn) {
+                submitBtn.disabled = false
+                submitBtn.textContent = existingId ? 'Save' : 'Add practice'
+              }
+              return
+            }
+          }
+
+          documents = normalizeDocuments(documents)
+        }
+
+        if (type === 'service') {
+          songs = parseSongs(
+            Array.from(form.querySelectorAll('#service-songs-list .service-song-row')).map((row) => ({
+              id: row.dataset.songId || '',
+              title: row.dataset.songTitle || '',
+              artist: row.dataset.songArtist || '',
+              key: row.dataset.songKey || '',
+            })),
+          )
+        }
+
+        await saveScheduleItem({
+          id: scheduleId,
+          type,
+          day: String(data.get('day') || '').trim(),
+          title: String(data.get('title') || '').trim(),
+          time: String(data.get('time') || '').trim(),
+          note: String(data.get('note') || '').trim(),
+          documents,
+          songs,
+        })
+
+        if (removedPaths.length) {
+          await deletePracticeDocPaths(removedPaths)
+          await removeCachedPracticeDocs(removedPaths)
+        }
+      } else {
+        await saveLyric({
+          id: String(data.get('id') || '') || undefined,
+          title: String(data.get('title') || '').trim(),
+          artist: String(data.get('artist') || '').trim(),
+          key: String(data.get('key') || '').trim(),
+          body: String(data.get('body') || '').trim(),
+        })
+      }
+
+      await syncLyrics()
+      await remount(root, {
+        tab: currentTab,
+        mode: 'list',
+        notice: navigator.onLine ? 'Saved and synced.' : 'Saved offline. Will sync when online.',
+      })
+    })
+  }
 }
